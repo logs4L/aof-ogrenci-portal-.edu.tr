@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>AÖF Öğrenci Portalı</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- KIRMIZI TEMA AYARLARI --- */
+        :root {
+            --primary-color: #b30000; /* Koyu Kırmızı */
+            --accent-color: #ff3333;  /* Parlak Kırmızı */
+            --bg-body: #f8f1f1;       /* Çok Açık Kırmızı/Gri */
+            --bg-white: #ffffff;
+            --text-main: #2d1111;     /* Siyaha yakın koyu kırmızı */
+            --text-secondary: #7a5c5c;
+            --border-color: #eccdcd;
+            --sidebar-width: 280px;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(179, 0, 0, 0.1);
+        }
+
+        /* Genel Sıfırlama */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- SOL MENÜ (SIDEBAR) --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            height: 100vh;
+        }
+
+        .sidebar-header {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: var(--primary-color);
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            white-space: nowrap; 
+        }
+
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-list li { margin-bottom: 8px; }
+        
+        .menu-list li a {
+            display: flex; align-items: center; padding: 12px 15px;
+            text-decoration: none; color: var(--text-secondary);
+            border-radius: var(--radius); font-weight: 500; font-size: 14px;
+            transition: 0.2s; cursor: pointer;
+        }
+        
+        .menu-list li a:hover { background-color: #ffebeb; color: var(--accent-color); }
+        .menu-list li a.active { background-color: #ffebeb; color: var(--accent-color); font-weight: 600; }
+        .menu-list li a i { margin-right: 12px; width: 20px; text-align: center; font-size: 18px; }
+
+        /* --- SAĞ İÇERİK ALANI --- */
+        .content-area {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;
+        }
+        .top-bar h2 { margin: 0; font-size: 28px; font-weight: 700; }
+
+        .btn-logout {
+            background: white; color: var(--primary-color); border: 1px solid var(--border-color);
+            padding: 10px 20px; border-radius: var(--radius); cursor: pointer;
+            font-weight: 600; transition: 0.2s;
+        }
+        .btn-logout:hover { background: #ffebeb; }
+
+        /* --- KART TASARIMLARI --- */
+        .student-card, .course-card, .grade-card {
+            background: var(--bg-white); padding: 25px; border-radius: 16px;
+            box-shadow: var(--shadow); border: 1px solid var(--border-color);
+            transition: 0.3s;
+        }
+
+        /* Öğrenci Kartı */
+        .student-card {
+            display: flex; align-items: center; gap: 25px; margin-bottom: 40px;
+            position: relative; overflow: hidden;
+        }
+        .student-card::before {
+            content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 6px; background: var(--primary-color);
+        }
+        .student-avatar {
+            width: 70px; height: 70px; background: #ffebeb; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: var(--primary-color);
+        }
+        
+        /* Izgara Yapısı */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;
+        }
+
+        /* Ders Kartları (Ana Sayfa İçin) */
+        .course-card:hover { transform: translateY(-5px); border-color: var(--accent-color); }
+        .course-header {
+            display: flex; justify-content: space-between; border-bottom: 1px solid #f8f1f1;
+            padding-bottom: 15px; margin-bottom: 15px; align-items: center;
+        }
+        .course-code {
+            font-weight: 700; color: var(--accent-color); background: #ffebeb;
+            padding: 6px 12px; border-radius: 8px; font-size: 13px;
+        }
+        .registered-text { color: var(--primary-color); font-size: 13px; font-weight: 600; }
+
+        /* --- NOT KARTLARI TASARIMI --- */
+        .grade-card {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .grade-info h4 { margin: 0 0 10px 0; font-size: 18px; color: var(--text-main); }
+        .grade-details { font-size: 14px; color: var(--text-secondary); display: flex; gap: 15px; }
+        .grade-details span { background: #f8f1f1; padding: 5px 10px; border-radius: 8px; }
+        
+        .letter-grade-box {
+            background: var(--primary-color); color: white;
+            width: 60px; height: 60px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: bold;
+        }
+        .letter-grade-box.high { background-color: #b30000; }
+        .letter-grade-box.mid { background-color: #e05c5c; }
+
+        /* Görünürlük Kontrolü İçin */
+        .hidden-section { display: none; }
+
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-university" style="margin-right: 10px;"></i> AÖF ÖĞRENCİ PORTALI
+        </div>
+
+        <ul class="menu-list">
+            <li><a onclick="switchView('dashboard')" id="menu-dashboard" class="active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
+            <li><a href="#"><i class="fas fa-user"></i> Profil Bilgileri</a></li>
+            <li><a href="#"><i class="fas fa-book-open"></i> Ders Durumu</a></li>
+            <li><a onclick="switchView('grades')" id="menu-grades"><i class="fas fa-file-alt"></i> Not Görüntüle</a></li>
+            <li><a href="#"><i class="fas fa-graduation-cap"></i> Mezuniyet</a></li>
+            <li><a href="https://aosdestek.anadolu.edu.tr/canli-destek" target="_blank"><i class="fas fa-headset"></i> Canlı Destek</a></li>
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="top-bar">
+            <h2 id="page-title">Öğrenci Paneli</h2>
+            <button class="btn-logout" onclick="window.location.reload()">Oturumu Kapat</button>
+        </div>
+
+        <div id="view-dashboard">
+            <div class="student-card">
+                <div class="student-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0;">Sercan Umut Taşcı</h3>
+                    <p style="margin: 5px 0; color: var(--text-secondary);">İktisat Fakültesi - İşletme Yönetimi</p>
+                    <span style="background: #ffebeb; color: var(--primary-color); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Aktif Öğrenci</span>
+                </div>
+            </div>
+
+            <h3>Bu Dönem Derslerim</h3>
+            <div class="grid-container">
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">IKT101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>İktisada Giriş I</h4>
+                </div>
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">MUH101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>Muhasebeye Giriş I</h4>
+                </div>
+                 <div class="course-card">
+                    <div class="course-header"><span class="course-code">ISL101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>İşletme İlkeleri I</h4>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-grades" class="hidden-section">
+            <h3>Not Durum Belgesi (Transkript Özeti)</h3>
+            <div class="grid-container">
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İktisada Giriş 1</h4>
+                        <div class="grade-details"><span>Vize: 85</span><span>Final: 90</span></div>
+                    </div>
+                    <div class="letter-grade-box high">AA</div>
+                </div>
+
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İngilizce 1</h4>
+                        <div class="grade-details"><span>Vize: 70</span><span>Final: 75</span></div>
+                    </div>
+                    <div class="letter-grade-box mid">BB</div>
+                </div>
+
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>Muhasebeye Giriş 1</h4>
+                        <div class="grade-details"><span>Vize: 95</span><span>Final: 85</span></div>
+                    </div>
+                    <div class="letter-grade-box high">AA</div>
+                </div>
+
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>Matematik 1</h4>
+                        <div class="grade-details"><span>Vize: 60</span><span>Final: 65</span></div>
+                    </div>
+                    <div class="letter-grade-box mid">CC</div>
+                </div>
+
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İşletme İlkeleri 1</h4>
+                        <div class="grade-details"><span>Vize: 80</span><span>Final: 85</span></div>
+                    </div>
+                    <div class="letter-grade-box high">BA</div>
+                </div>
+
+                 <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>Türk Dili 1</h4>
+                        <div class="grade-details"><span>Vize: 90</span><span>Final: 95</span></div>
+                    </div>
+                    <div class="letter-grade-box high">AA</div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchView(viewName) {
+            document.getElementById('view-dashboard').style.display = 'none';
+            document.getElementById('view-grades').style.display = 'none';
+            
+            document.getElementById('menu-dashboard').classList.remove('active');
+            document.getElementById('menu-grades').classList.remove('active');
+
+            if (viewName === 'dashboard') {
+                document.getElementById('view-dashboard').style.display = 'block';
+                document.getElementById('menu-dashboard').classList.add('active');
+                document.getElementById('page-title').innerText = "Öğrenci Paneli";
+            } else if (viewName === 'grades') {
+                document.getElementById('view-grades').style.display = 'block';
+                document.getElementById('menu-grades').classList.add('active');
+                document.getElementById('page-title').innerText = "Not Görüntüle";
+            }
+        }
+    </script>
+
+</body>
+</html>
