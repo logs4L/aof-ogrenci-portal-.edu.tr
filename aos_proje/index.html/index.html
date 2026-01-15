@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <title>AÖF Öğrenci Portalı</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- KIRMIZI TEMA AYARLARI --- */
+        :root {
+            --primary-color: #b30000;
+            --accent-color: #ff3333;
+            --bg-body: #f8f1f1;
+            --bg-white: #ffffff;
+            --text-main: #2d1111;
+            --text-secondary: #7a5c5c;
+            --border-color: #eccdcd;
+            --sidebar-width: 280px;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(179, 0, 0, 0.1);
+        }
+
+        /* Genel Sıfırlama */
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* --- SOL MENÜ (SIDEBAR) --- */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-white);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            height: 100vh;
+        }
+
+        .sidebar-header {
+            height: 50px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            color: var(--primary-color);
+            font-size: 18px;
+            font-weight: 800;
+            margin-bottom: 30px;
+            white-space: nowrap; 
+        }
+
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-list li { margin-bottom: 8px; }
+        
+        .menu-list li a {
+            display: flex; align-items: center; padding: 12px 15px;
+            text-decoration: none; color: var(--text-secondary);
+            border-radius: var(--radius); font-weight: 500; font-size: 14px;
+            transition: 0.2s; cursor: pointer;
+        }
+        
+        .menu-list li a:hover { background-color: #ffebeb; color: var(--accent-color); }
+        .menu-list li a.active { background-color: #ffebeb; color: var(--accent-color); font-weight: 600; }
+        .menu-list li a i { margin-right: 12px; width: 20px; text-align: center; font-size: 18px; }
+
+        /* --- SAĞ İÇERİK ALANI --- */
+        .content-area {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .top-bar {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px;
+        }
+        .top-bar h2 { margin: 0; font-size: 28px; font-weight: 700; }
+
+        .btn-logout {
+            background: white; color: var(--primary-color); border: 1px solid var(--border-color);
+            padding: 10px 20px; border-radius: var(--radius); cursor: pointer;
+            font-weight: 600; transition: 0.2s;
+        }
+        .btn-logout:hover { background: #ffebeb; }
+
+        /* --- KART TASARIMLARI --- */
+        .student-card, .course-card, .grade-card {
+            background: var(--bg-white); padding: 25px; border-radius: 16px;
+            box-shadow: var(--shadow); border: 1px solid var(--border-color);
+            transition: 0.3s;
+        }
+
+        /* Öğrenci Kartı */
+        .student-card {
+            display: flex; align-items: center; gap: 25px; margin-bottom: 40px;
+            position: relative; overflow: hidden;
+        }
+        .student-card::before {
+            content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 6px; background: var(--primary-color);
+        }
+        .student-avatar {
+            width: 70px; height: 70px; background: #ffebeb; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 28px; color: var(--primary-color);
+        }
+        
+        /* Izgara Yapısı */
+        .grid-container {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;
+        }
+
+        /* Ders Kartları */
+        .course-card:hover { transform: translateY(-5px); border-color: var(--accent-color); }
+        .course-header {
+            display: flex; justify-content: space-between; border-bottom: 1px solid #f8f1f1;
+            padding-bottom: 15px; margin-bottom: 15px; align-items: center;
+        }
+        .course-code {
+            font-weight: 700; color: var(--accent-color); background: #ffebeb;
+            padding: 6px 12px; border-radius: 8px; font-size: 13px;
+        }
+        .registered-text { color: var(--primary-color); font-size: 13px; font-weight: 600; }
+
+        /* --- NOT KARTLARI TASARIMI --- */
+        .grade-card {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .grade-info h4 { margin: 0 0 10px 0; font-size: 18px; color: var(--text-main); }
+        .grade-details { font-size: 14px; color: var(--text-secondary); display: flex; gap: 15px; }
+        .grade-details span { background: #f8f1f1; padding: 5px 10px; border-radius: 8px; }
+        
+        .letter-grade-box {
+            background: var(--primary-color); color: white;
+            width: 60px; height: 60px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px; font-weight: bold;
+        }
+        .letter-grade-box.high { background-color: #b30000; }
+        .letter-grade-box.mid { background-color: #e05c5c; }
+
+        /* --- DERS DURUMU TABLOSU --- */
+        .status-table-header {
+            background-color: #7a1f1f; color: white;
+            padding: 15px; border-radius: 8px 8px 0 0;
+            display: grid; grid-template-columns: 0.5fr 4fr 1fr 1fr 1fr;
+            font-weight: bold; font-size: 14px;
+        }
+        .status-table-row {
+            padding: 15px; display: grid; grid-template-columns: 0.5fr 4fr 1fr 1fr 1fr;
+            align-items: center; border-bottom: 2px solid #1a1a1a;
+            font-size: 13px; font-weight: 500; position: relative;
+        }
+        .status-row-yellow { background-color: #424210; color: #ffcc00; }
+        .status-row-yellow::before { content: '●'; color: #ffcc00; position: absolute; left: 10px; font-size: 10px; }
+        .status-row-grey { background-color: #1f1f1f; color: #888888; }
+        .status-row-grey::before { content: '●'; color: #555; position: absolute; left: 10px; font-size: 10px; }
+        .status-table-row:last-child { border-radius: 0 0 8px 8px; }
+
+        /* --- PROFİL BİLGİLERİ TASARIMI (DARK THEME) --- */
+        #view-profile {
+            background-color: #181818;
+            color: #ddd;
+            border-radius: 8px;
+            border: 1px solid #333;
+            overflow: hidden;
+            max-width: 900px;
+        }
+
+        .profile-header-section {
+            display: flex; gap: 20px; padding: 20px;
+            background-color: #222; border-bottom: 1px solid #333;
+        }
+
+        .profile-img-container {
+            width: 100px; height: 120px; background: #000;
+            position: relative; border: 1px solid #444;
+        }
+        
+        .profile-img-container img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        .edit-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(0,0,0,0.7); color: white;
+            font-size: 11px; text-align: center; padding: 3px 0;
+            cursor: pointer; transition: 0.2s;
+        }
+        .edit-overlay:hover { background: rgba(179, 0, 0, 0.9); }
+
+        .profile-text-info h2 { margin: 0 0 5px 0; color: #fff; font-size: 18px; font-weight: bold; }
+        .profile-text-info p { margin: 2px 0; font-size: 13px; color: #ccc; }
+        .profile-text-info small { display: block; margin-top: 10px; font-size: 11px; color: #777; }
+
+        .profile-details-container { padding: 0 20px; }
+        .profile-row { border-bottom: 1px solid #333; padding: 12px 0; display: flex; }
+        .profile-row:last-child { border-bottom: none; }
+        .row-item { flex: 1; }
+        .row-item label { display: block; font-size: 11px; color: #999; margin-bottom: 3px; font-weight: 600; }
+        .row-item span { display: block; font-size: 13px; color: #fff; font-weight: 500; }
+        .link-text { color: #3b82f6 !important; text-decoration: underline; cursor: pointer; }
+
+        .hidden-section { display: none; }
+    </style>
+</head>
+<body>
+
+    <input type="file" id="file-upload" accept="image/*" style="display: none;" onchange="resmiGuncelle(event)">
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-university" style="margin-right: 10px;"></i> AÖF ÖĞRENCİ PORTALI
+        </div>
+
+        <ul class="menu-list">
+            <li><a onclick="switchView('dashboard')" id="menu-dashboard" class="active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
+            <li><a onclick="switchView('profile')" id="menu-profile"><i class="fas fa-user"></i> Profil Bilgileri</a></li>
+            <li><a onclick="switchView('course-status')" id="menu-course-status"><i class="fas fa-book-open"></i> Ders Durumu</a></li>
+            <li><a onclick="switchView('grades')" id="menu-grades"><i class="fas fa-file-alt"></i> Not Görüntüle</a></li>
+            <li><a href="#"><i class="fas fa-graduation-cap"></i> Mezuniyet</a></li>
+            <li><a href="https://aosdestek.anadolu.edu.tr/canli-destek" target="_blank"><i class="fas fa-headset"></i> Canlı Destek</a></li>
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="top-bar">
+            <h2 id="page-title">Öğrenci Paneli</h2>
+            <button class="btn-logout" onclick="window.location.href='https://giris.anadolu.edu.tr/login?login_challenge=128a2438e36d4c899c755fa61061d5f0'">Oturumu Kapat</button>
+        </div>
+
+        <div id="view-dashboard">
+            <div class="student-card">
+                <div class="student-avatar">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0;">Sercan Umut Taşcı</h3>
+                    <p style="margin: 5px 0; color: var(--text-secondary);">Yönetim Bilişim Sistemleri</p>
+                    <span style="background: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Aktif Öğrenci</span>
+                </div>
+            </div>
+
+            <h3>Bu Dönem Derslerim</h3>
+            <div class="grid-container">
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">IKT101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>İktisada Giriş I</h4>
+                </div>
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">MUH101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>Muhasebeye Giriş I</h4>
+                </div>
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">ISL101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>İşletme İlkeleri I</h4>
+                </div>
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">ING101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>İngilizce I</h4>
+                </div>
+                <div class="course-card">
+                    <div class="course-header"><span class="course-code">MAT101</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div>
+                    <h4>Matematik I</h4>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-grades" class="hidden-section">
+            <h3>Not Durum Belgesi (Transkript Özeti)</h3>
+            <div class="grid-container">
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İktisada Giriş 1</h4>
+                        <div class="grade-details"><span>Vize: 85</span><span>Final: 90</span></div>
+                    </div>
+                    <div class="letter-grade-box high">AA</div>
+                </div>
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İngilizce 1</h4>
+                        <div class="grade-details"><span>Vize: 70</span><span>Final: 75</span></div>
+                    </div>
+                    <div class="letter-grade-box mid">BB</div>
+                </div>
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>Muhasebeye Giriş 1</h4>
+                        <div class="grade-details"><span>Vize: 95</span><span>Final: 85</span></div>
+                    </div>
+                    <div class="letter-grade-box high">AA</div>
+                </div>
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>Matematik 1</h4>
+                        <div class="grade-details"><span>Vize: 60</span><span>Final: 65</span></div>
+                    </div>
+                    <div class="letter-grade-box mid">CC</div>
+                </div>
+                <div class="grade-card">
+                    <div class="grade-info">
+                        <h4>İşletme İlkeleri 1</h4>
+                        <div class="grade-details"><span>Vize: 80</span><span>Final: 85</span></div>
+                    </div>
+                    <div class="letter-grade-box high">BA</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-course-status" class="hidden-section">
+            <h3 style="margin-bottom: 20px;">Ders Durumu</h3>
+            <div class="status-table-container">
+                <div class="status-table-header">
+                    <span>Dnm</span><span>Ders Kodu / Ders Adı</span><span>Statü</span><span>Kredi</span><span>Not</span>
+                </div>
+                
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>IKT101U &nbsp; İKTİSADA GİRİŞ</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>ING101U &nbsp; İNGİLİZCE I</span><span>ZORUNLU</span><span>3,0</span><span></span></div>
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>ISL105U &nbsp; İŞLETME İLKELERİ</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>MAT105U &nbsp; MATEMATİK I</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>MUH101U &nbsp; GENEL MUHASEBE</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-yellow"><span style="padding-left: 15px;">1</span><span>YBS101U &nbsp; BİLİŞİM TEKNOLOJİLERİ</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>HUK124U &nbsp; BİLİŞİM HUKUKU</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>IKT102U &nbsp; PROJE YÖNETİMİ</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>ILT102U &nbsp; YENİ İLETİŞİM TEKNOLOJİLERİ</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>ING102U &nbsp; İNGİLİZCE II</span><span>ZORUNLU</span><span>3,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>ISL106U &nbsp; İŞLETME FONKSİYONLARI</span><span>ZORUNLU</span><span>5,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">2</span><span>MAT106U &nbsp; MATEMATİK II</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>IST203U &nbsp; İSTATİSTİK</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>TAR201U &nbsp; ATATÜRK İLK. VE İNK. TARİHİ I</span><span>ZORUNLU</span><span>3,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>TUR201U &nbsp; TÜRK DİLİ I</span><span>ZORUNLU</span><span>3,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>YBS201U &nbsp; BİLG. VE PROGRAMLAMAYA GİRİŞ</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>YBS203U &nbsp; İŞLEM TABLOLARI</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+                <div class="status-table-row status-row-grey"><span style="padding-left: 15px;">3</span><span>YBS207U &nbsp; BİLİŞİM SİSTEMLERİ</span><span>ZORUNLU</span><span>6,0</span><span></span></div>
+            </div>
+        </div>
+
+        <div id="view-profile" class="hidden-section">
+            <h3 style="margin-bottom: 20px;">Profil Bilgileri</h3>
+            
+            <div style="background-color: #181818; border: 1px solid #333; border-radius: 8px; overflow: hidden; color: #ddd;">
+                <div class="profile-header-section">
+                    <div class="profile-img-container">
+                        <img id="profile-img" src="vesikalik.png" alt="Profil Resmi" onerror="this.src='https://via.placeholder.com/100x120?text=FOTO'">
+                        <div class="edit-overlay" onclick="fotografYukle()">
+                            <i class="fas fa-pencil-alt"></i> Düzenle
+                        </div>
+                    </div>
+                    <div class="profile-text-info">
+                        <h2>SERCAN UMUT TAŞCI</h2>
+                        <p>YÖNETİM BİLİŞİM SİSTEMLERİ</p>
+                        <p>AÇIKÖĞRETİM FAKÜLTESİ</p>
+                        <small>Fotoğraf onay tarihi: 18.09.2025</small>
+                    </div>
+                </div>
+
+                <div class="profile-details-container">
+                    <div class="profile-row"><div class="row-item"><label>Fakülte Giriş Türü</label><span>SINAVSIZ İKİNCİ ÜNİVERSİTE</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Kayıt Tarihi</label><span>18.09.2025</span></div><div class="row-item"><label>Yabancı Dil</label><span>İNGİLİZCE</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Öğrenci Durum</label><span>AKTİF</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Büro</label><span>ESKİŞEHİR</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Sınav Merkezi (Güncel)</label><span>KIRIKKALE</span></div><div class="row-item"><label>Sınav Merkezi(DÖNEM SONU)</label><span>KIRIKKALE</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Ek Özellik</label><span>YOK</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Sınav Engel Durumu</label><span>YOK</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Özel Araç Gereç Kullanma Durumu</label><span>YOK</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Askerlik Durum</label><span class="link-text">--- Askerlik Durum Sorgula</span></div></div>
+                    <div class="profile-row"><div class="row-item"><label>Kayıt Yeniletmediği Dönem Sayısı</label><span>0</span></div></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Sayfa Yüklendiğinde Kayıtlı Resmi Kontrol Et
+        window.onload = function() {
+            const kayitliResim = localStorage.getItem('kayitliProfilResmi');
+            if(kayitliResim) {
+                document.getElementById('profile-img').src = kayitliResim;
+            }
+        }
+
+        function switchView(viewName) {
+            document.getElementById('view-dashboard').style.display = 'none';
+            document.getElementById('view-grades').style.display = 'none';
+            document.getElementById('view-course-status').style.display = 'none';
+            document.getElementById('view-profile').style.display = 'none';
+            
+            document.getElementById('menu-dashboard').classList.remove('active');
+            document.getElementById('menu-grades').classList.remove('active');
+            document.getElementById('menu-course-status').classList.remove('active');
+            document.getElementById('menu-profile').classList.remove('active');
+
+            if (viewName === 'dashboard') {
+                document.getElementById('view-dashboard').style.display = 'block';
+                document.getElementById('menu-dashboard').classList.add('active');
+                document.getElementById('page-title').innerText = "Öğrenci Paneli";
+            } 
+            else if (viewName === 'grades') {
+                document.getElementById('view-grades').style.display = 'block';
+                document.getElementById('menu-grades').classList.add('active');
+                document.getElementById('page-title').innerText = "Not Görüntüle";
+            }
+            else if (viewName === 'course-status') {
+                document.getElementById('view-course-status').style.display = 'block';
+                document.getElementById('menu-course-status').classList.add('active');
+                document.getElementById('page-title').innerText = "Ders Durumu";
+            }
+            else if (viewName === 'profile') {
+                document.getElementById('view-profile').style.display = 'block';
+                document.getElementById('menu-profile').classList.add('active');
+                document.getElementById('page-title').innerText = "Profil Bilgileri";
+            }
+        }
+
+        // --- FOTOĞRAF YÜKLEME VE KAYDETME ---
+        
+        function fotografYukle() {
+            document.getElementById('file-upload').click();
+        }
+
+        function resmiGuncelle(event) {
+            var reader = new FileReader();
+            reader.onload = function(){
+                var base64Resim = reader.result;
+                
+                // 1. Ekranda göster
+                document.getElementById('profile-img').src = base64Resim;
+                
+                // 2. Tarayıcı hafızasına (Veritabanına) kaydet
+                localStorage.setItem('kayitliProfilResmi', base64Resim);
+            };
+            if(event.target.files.length > 0) {
+                reader.readAsDataURL(event.target.files[0]);
+            }
+        }
+    </script>
+
+</body>
+</html>
