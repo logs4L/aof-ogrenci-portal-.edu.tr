@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>AÖF Öğrenci Portalı</title>
+
+    <link rel="icon" type="image/x-icon" href="https://www.anadolu.edu.tr/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="https://www.anadolu.edu.tr/favicon.ico">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- TEMA DEĞİŞKENLERİ --- */
+        :root {
+            --primary-color: #b30000;
+            --accent-color: #ff3333;
+            --bg-body: #f8f1f1;
+            --bg-sidebar: #ffffff;
+            --bg-card: #ffffff;
+            --text-main: #2d1111;
+            --text-secondary: #7a5c5c;
+            --border-color: #eccdcd;
+            --sidebar-width: 280px;
+            --radius: 12px;
+            --shadow: 0 4px 6px -1px rgba(179, 0, 0, 0.1);
+        }
+
+        body.dark-mode {
+            --primary-color: #ff4d4d;
+            --accent-color: #ff6666;
+            --bg-body: #121212;
+            --bg-sidebar: #1e1e1e;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --border-color: #333333;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Inter', sans-serif; margin: 0; padding: 0;
+            background-color: var(--bg-body); color: var(--text-main);
+            height: 100vh; overflow: hidden; display: flex;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* --- SPLASH SCREEN (YÜKLEME EKRANI - SPINNER) --- */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: var(--bg-sidebar); z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+
+        /* YÜKLEME ANİMASYONU (SPINNER) */
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(179, 0, 0, 0.2); 
+            border-left-color: var(--primary-color); 
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text { font-family: 'Inter', sans-serif; color: var(--primary-color); font-size: 14px; font-weight: 600; animation: fadeInOut 1.5s infinite; }
+        @keyframes fadeInOut { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        /* --- DUYURU POPUP --- */
+        #announcement-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); z-index: 9998;
+            align-items: center; justify-content: center; backdrop-filter: blur(5px);
+            padding: 20px;
+        }
+        .modal-content {
+            background-color: var(--bg-card); padding: 25px; border-radius: 20px;
+            width: 100%; max-width: 400px; text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); border: 1px solid var(--border-color);
+            position: relative; animation: slideUp 0.4s ease-out;
+        }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-image { 
+            width: 100%; height: 180px; object-fit: cover; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);
+            background-color: #eee; object-position: top;
+        }
+        .btn-modal { background-color: var(--primary-color); color: white; border: none; padding: 12px; border-radius: 50px; width: 100%; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-modal:hover { opacity: 0.9; }
+        .close-modal { position: absolute; top: 10px; right: 15px; font-size: 28px; color: var(--text-secondary); cursor: pointer; }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            width: var(--sidebar-width); background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color); display: flex; flex-direction: column;
+            padding: 20px; height: 100vh; z-index: 1000; transition: transform 0.3s ease;
+        }
+        .sidebar-header { 
+            height: 50px; display: flex; align-items: center; justify-content: space-between; 
+            color: var(--primary-color); font-size: 16px; font-weight: 800; margin-bottom: 30px; 
+        }
+        
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-list li { margin-bottom: 8px; }
+        .menu-list li a {
+            display: flex; align-items: center; padding: 12px 15px; text-decoration: none;
+            color: var(--text-secondary); border-radius: var(--radius); font-weight: 500; font-size: 14px;
+            transition: 0.2s; cursor: pointer;
+        }
+        .menu-list li a:hover, .menu-list li a.active { background-color: rgba(255, 51, 51, 0.1); color: var(--primary-color); }
+        .menu-list li a i { margin-right: 12px; width: 20px; text-align: center; font-size: 18px; }
+
+        .sidebar-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); z-index: 900;
+        }
+
+        /* --- İÇERİK ALANI --- */
+        .content-area { flex: 1; padding: 40px; overflow-y: auto; position: relative; width: 100%; }
+        
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .top-bar h2 { margin: 0; font-size: 24px; font-weight: 700; color: var(--text-main); }
+        .mobile-menu-btn { display: none; font-size: 24px; color: var(--text-main); cursor: pointer; margin-right: 15px; }
+
+        .btn-logout {
+            background: var(--bg-card); color: var(--primary-color); border: 1px solid var(--border-color);
+            padding: 8px 16px; border-radius: var(--radius); cursor: pointer; font-weight: 600; font-size: 13px;
+        }
+
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        
+        .student-card { background: var(--bg-card); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); display: flex; align-items: center; gap: 20px; margin-bottom: 30px; position: relative; overflow: hidden; box-shadow: var(--shadow); }
+        .student-card::before { content: ''; position: absolute; left: 0; top: 0; height: 100%; width: 5px; background: var(--primary-color); }
+        .student-avatar { width: 60px; height: 60px; background: rgba(255, 51, 51, 0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; color: var(--primary-color); flex-shrink: 0; overflow: hidden; }
+        .student-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .course-card, .grade-card { background: var(--bg-card); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .course-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px; align-items: center; }
+        .course-code { font-weight: 700; color: var(--primary-color); background: rgba(255, 51, 51, 0.1); padding: 5px 10px; border-radius: 6px; font-size: 12px; }
+        
+        .grade-card { display: flex; justify-content: space-between; align-items: center; }
+        .grade-info h4 { margin: 0 0 5px 0; font-size: 16px; color: var(--text-main); }
+        .grade-details { font-size: 13px; color: var(--text-secondary); display: flex; gap: 10px; }
+        .grade-details span { background: var(--bg-body); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .letter-grade-box { color: white; width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: bold; }
+        .bg-high { background-color: #b30000; } body.dark-mode .bg-high { background-color: #ff4d4d; }
+        .bg-mid { background-color: #e05c5c; } body.dark-mode .bg-mid { background-color: #ff8080; }
+
+        .status-table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; border: 1px solid var(--border-color); }
+        .status-table-header { 
+            background-color: #7a1f1f; color: white; padding: 15px; 
+            display: grid; grid-template-columns: 50px minmax(200px, 1fr) 100px 80px 50px; 
+            font-weight: bold; font-size: 13px; min-width: 600px;
+        }
+        .status-table-row { 
+            padding: 15px; display: grid; grid-template-columns: 50px minmax(200px, 1fr) 100px 80px 50px; 
+            align-items: center; border-bottom: 1px solid var(--border-color); 
+            font-size: 13px; font-weight: 500; position: relative; color: var(--text-main); min-width: 600px;
+        }
+        .status-row-yellow { background-color: rgba(255, 204, 0, 0.1); color: #b38f00; } body.dark-mode .status-row-yellow { color: #ffcc00; }
+        .status-row-yellow::before { content: '●'; color: #ffcc00; position: absolute; left: 15px; font-size: 8px; }
+        .status-row-grey { color: var(--text-secondary); }
+        .status-row-grey::before { content: '●'; color: var(--text-secondary); position: absolute; left: 15px; font-size: 8px; }
+
+        #view-profile { background-color: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color); overflow: hidden; }
+        .profile-header-section { display: flex; gap: 15px; padding: 20px; background-color: rgba(0,0,0,0.05); border-bottom: 1px solid var(--border-color); align-items: center; }
+        .profile-img-container { width: 80px; height: 100px; background: #000; position: relative; border: 1px solid var(--border-color); flex-shrink: 0; }
+        .profile-img-container img { width: 100%; height: 100%; object-fit: cover; }
+        .edit-overlay { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: white; font-size: 10px; text-align: center; padding: 2px 0; cursor: pointer; }
+        .profile-details-container { padding: 0 20px; }
+        .profile-row { border-bottom: 1px solid var(--border-color); padding: 12px 0; display: flex; flex-wrap: wrap; gap: 10px; }
+        .profile-row:last-child { border-bottom: none; }
+        .row-item { flex: 1; min-width: 140px; }
+        .row-item label { display: block; font-size: 10px; color: var(--text-secondary); margin-bottom: 2px; font-weight: 600; }
+        .row-item span { display: block; font-size: 12px; color: var(--text-main); font-weight: 500; }
+
+        .theme-toggle-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 18px; padding: 8px; border-radius: 50%; }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -100%; top: 0; height: 100%; width: 260px; box-shadow: 2px 0 10px rgba(0,0,0,0.2); }
+            .sidebar.active { left: 0; }
+            .content-area { padding: 20px; width: 100%; }
+            .mobile-menu-btn { display: block; }
+            .sidebar-overlay.active { display: block; }
+            .top-bar { margin-bottom: 20px; }
+            .top-bar h2 { font-size: 20px; }
+            .student-card { flex-direction: row; padding: 15px; }
+            .profile-header-section { flex-direction: row; align-items: flex-start; }
+            .profile-text-info h2 { font-size: 16px; }
+        }
+
+        .hidden-section { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Veriler alınıyor, bekleyiniz...</div>
+    </div>
+
+    <div id="announcement-modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">×</span>
+            <h3 style="color:var(--primary-color); margin-top:0;">DUYURU</h3>
+            <p style="margin-bottom:15px; font-size:14px;">Güz dönemi sonu sonuçları açıklandı.</p>
+            <img src="https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=600" alt="Sınav Sonuçları" class="modal-image">
+            <button class="btn-modal" onclick="goToGrades()">Sonuçları Görüntüle</button>
+        </div>
+    </div>
+
+    <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+    <input type="file" id="file-upload" accept="image/*" style="display: none;" onchange="resmiGuncelle(event)">
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <img src="univeriste.png" alt="Anadolu Üniversitesi Logosu" style="height: 40px; width: auto; object-fit: contain;">
+                <span>ÖĞRENCİ PANELİ</span>
+            </div>
+            <button class="theme-toggle-btn" onclick="toggleTheme()"><i class="fas fa-moon" id="theme-icon"></i></button>
+        </div>
+        <ul class="menu-list">
+            <li><a onclick="switchView('dashboard'); toggleMenuIfMobile()" id="menu-dashboard" class="active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
+            <li><a onclick="switchView('profile'); toggleMenuIfMobile()" id="menu-profile"><i class="fas fa-user"></i> Profil Bilgileri</a></li>
+            <li><a onclick="switchView('course-status'); toggleMenuIfMobile()" id="menu-course-status"><i class="fas fa-book-open"></i> Ders Durumu</a></li>
+            <li><a onclick="switchView('grades'); toggleMenuIfMobile()" id="menu-grades"><i class="fas fa-file-alt"></i> Not Görüntüle</a></li>
+            <li><a href="#"><i class="fas fa-graduation-cap"></i> Mezuniyet</a></li>
+            <li><a href="https://aosdestek.anadolu.edu.tr/canli-destek" target="_blank"><i class="fas fa-headset"></i> Canlı Destek</a></li>
+        </ul>
+    </div>
+
+    <div class="content-area">
+        <div class="top-bar">
+            <div style="display: flex; align-items: center;">
+                <div class="mobile-menu-btn" onclick="toggleMenu()"><i class="fas fa-bars"></i></div>
+                <h2 id="page-title">Öğrenci Paneli</h2>
+            </div>
+            <button class="btn-logout" onclick="window.location.href='https://giris.anadolu.edu.tr/login?login_challenge=128a2438e36d4c899c755fa61061d5f0'">Çıkış</button>
+        </div>
+
+        <div id="view-dashboard"></div>
+        <div id="view-grades" class="hidden-section"></div>
+        <div id="view-course-status" class="hidden-section"></div>
+        <div id="view-profile" class="hidden-section"></div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const currentTheme = localStorage.getItem('theme');
+            if (currentTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('theme-icon').classList.replace('fa-moon', 'fa-sun');
+            }
+            // Başlangıç Yüklemesi
+            setTimeout(function() {
+                document.getElementById('loading-overlay').style.display = 'none';
+                setTimeout(() => { document.getElementById('announcement-modal').style.display = 'flex'; }, 300);
+            }, 3000);
+        });
+
+        function toggleMenu() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+        function toggleMenuIfMobile() {
+            if (window.innerWidth <= 768) { toggleMenu(); }
+        }
+
+        function closeModal() { document.getElementById('announcement-modal').style.display = 'none'; }
+        
+        function goToGrades() { 
+            closeModal(); 
+            switchView('grades'); 
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.getElementById('theme-icon');
+            if (document.body.classList.contains('dark-mode')) {
+                icon.classList.replace('fa-moon', 'fa-sun'); localStorage.setItem('theme', 'dark');
+            } else {
+                icon.classList.replace('fa-sun', 'fa-moon'); localStorage.setItem('theme', 'light');
+            }
+        }
+
+        const DB = {
+            ogrenci: { ad: "Sercan Umut Taşcı", bolum: "YÖNETİM BİLİŞİM SİSTEMLERİ", fakulte: "AÇIKÖĞRETİM FAKÜLTESİ", kayitTarihi: "18.09.2025", durum: "AKTİF", buro: "ESKİŞEHİR", sinavMerkezi: "KIRIKKALE" },
+            aktifDersler: [ { kod: "IKT101", ad: "İktisada Giriş I" }, { kod: "MUH101", ad: "Muhasebeye Giriş I" }, { kod: "ISL101", ad: "İşletme İlkeleri I" }, { kod: "ING101", ad: "İngilizce I" }, { kod: "MAT101", ad: "Matematik I" } ],
+            notlar: [
+                { ad: "İktisada Giriş 1", vize: 52, final: 64, harf: "CC", renk: "bg-mid" },
+                { ad: "İngilizce 1", vize: 88, final: 96, harf: "AA", renk: "bg-high" },
+                { ad: "Muhasebeye Giriş 1", vize: 70, final: 54, harf: "CC", renk: "bg-mid" },
+                { ad: "Matematik 1", vize: 48, final: 54, harf: "DC", renk: "bg-mid" },
+                { ad: "İşletme İlkeleri 1", vize: 74, final: 88, harf: "BA", renk: "bg-high" }
+            ],
+            mufredat: [
+                { donem: 1, kod: "IKT101U", ad: "İKTİSADA GİRİŞ", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "ING101U", ad: "İNGİLİZCE I", kredi: "3,0", aktif: true },
+                { donem: 1, kod: "ISL105U", ad: "İŞLETME İLKELERİ", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "MAT105U", ad: "MATEMATİK I", kredi: "6,0", aktif: true },
+                { donem: 1, kod: "MUH101U", ad: "GENEL MUHASEBE", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "YBS101U", ad: "BİLİŞİM TEKNOLOJİLERİ", kredi: "6,0", aktif: true },
+                { donem: 2, kod: "HUK124U", ad: "BİLİŞİM HUKUKU", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "IKT102U", ad: "PROJE YÖNETİMİ", kredi: "6,0", aktif: false },
+                { donem: 2, kod: "ILT102U", ad: "YENİ İLETİŞİM TEKNOLOJİLERİ", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "ING102U", ad: "İNGİLİZCE II", kredi: "3,0", aktif: false },
+                { donem: 2, kod: "ISL106U", ad: "İŞLETME FONKSİYONLARI", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "MAT106U", ad: "MATEMATİK II", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "IST203U", ad: "İSTATİSTİK", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "TAR201U", ad: "ATATÜRK İLK. VE İNK. TARİHİ I", kredi: "3,0", aktif: false },
+                { donem: 3, kod: "TUR201U", ad: "TÜRK DİLİ I", kredi: "3,0", aktif: false },
+                { donem: 3, kod: "YBS201U", ad: "BİLG. VE PROGRAMLAMAYA GİRİŞ", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "YBS203U", ad: "İŞLEM TABLOLARI", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "YBS207U", ad: "BİLİŞİM SİSTEMLERİ", kredi: "6,0", aktif: false }
+            ]
+        };
+
+        window.onload = function() {
+            renderDashboard(); renderGrades(); renderCourseStatus(); renderProfile();
+            const kayitliResim = localStorage.getItem('kayitliProfilResmi');
+            if(kayitliResim) {
+                 setTimeout(() => {
+                    document.querySelectorAll('.student-avatar i').forEach(i => i.style.display='none');
+                    const dbAvatar = document.querySelector('.student-avatar');
+                    if(dbAvatar) dbAvatar.innerHTML = `<img src="${kayitliResim}" style="width:100%; height:100%; object-fit:cover;">`;
+                    const profImg = document.getElementById('profile-img');
+                    if(profImg) profImg.src = kayitliResim;
+                }, 100);
+            }
+        }
+
+        // --- SEKME GEÇİŞİ (YÜKLEME EKRANLI) ---
+        function switchView(viewName) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.display = 'none';
+                ['dashboard', 'grades', 'course-status', 'profile'].forEach(v => {
+                    document.getElementById('view-' + v).style.display = 'none';
+                    document.getElementById('menu-' + v).classList.remove('active');
+                });
+                document.getElementById('view-' + viewName).style.display = 'block';
+                document.getElementById('menu-' + viewName).classList.add('active');
+                const titles = { 'dashboard': 'Öğrenci Paneli', 'grades': 'Not Görüntüle', 'course-status': 'Ders Durumu', 'profile': 'Profil Bilgileri' };
+                document.getElementById('page-title').innerText = titles[viewName];
+            }, 1000);
+        }
+
+        function renderDashboard() {
+            let html = `
+            <div class="student-card">
+                <div class="student-avatar"><i class="fas fa-user"></i></div>
+                <div>
+                    <h3 style="margin: 0; font-size:18px;">${DB.ogrenci.ad}</h3>
+                    <p style="margin: 5px 0; font-size:12px; color: var(--text-secondary);">${DB.ogrenci.bolum}</p>
+                    <span style="background: rgba(220, 252, 231, 0.5); color: #166534; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;">Aktif Öğrenci</span>
+                </div>
+            </div>
+            <h3>Bu Dönem Derslerim</h3><div class="grid-container">`;
+            DB.aktifDersler.forEach(ders => {
+                html += `<div class="course-card"><div class="course-header"><span class="course-code">${ders.kod}</span><span class="registered-text"><i class="fas fa-check-circle"></i> Kayıtlı</span></div><h4>${ders.ad}</h4></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-dashboard').innerHTML = html;
+        }
+
+        function renderGrades() {
+            let html = `<h3>Not Durum Belgesi</h3><div class="grid-container">`;
+            DB.notlar.forEach(not => {
+                html += `<div class="grade-card"><div class="grade-info"><h4>${not.ad}</h4><div class="grade-details"><span>Vize: ${not.vize}</span><span>Final: ${not.final}</span></div></div><div class="letter-grade-box ${not.renk}">${not.harf}</div></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-grades').innerHTML = html;
+        }
+
+        function renderCourseStatus() {
+            let html = `<h3 style="margin-bottom: 20px;">Ders Durumu</h3><div class="status-table-container"><div class="status-table-header"><span>Dnm</span><span>Ders Kodu / Ders Adı</span><span>Statü</span><span>Kredi</span><span>Not</span></div>`;
+            DB.mufredat.forEach(ders => {
+                const rowClass = ders.aktif ? 'status-row-yellow' : 'status-row-grey';
+                html += `<div class="status-table-row ${rowClass}"><span style="padding-left: 15px;">${ders.donem}</span><span>${ders.kod} &nbsp; ${ders.ad}</span><span>ZORUNLU</span><span>${ders.kredi}</span><span></span></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-course-status').innerHTML = html;
+        }
+
+        function renderProfile() {
+            const html = `<h3 style="margin-bottom: 20px;">Profil Bilgileri</h3><div id="view-profile"><div class="profile-header-section"><div class="profile-img-container"><img id="profile-img" src="vesikalik.png" alt="Profil Resmi" onerror="this.src='https://via.placeholder.com/100x120?text=FOTO'"><div class="edit-overlay" onclick="fotografYukle()"><i class="fas fa-pencil-alt"></i> Düzenle</div></div><div class="profile-text-info"><h2>${DB.ogrenci.ad.toUpperCase()}</h2><p>${DB.ogrenci.bolum}</p><p>${DB.ogrenci.fakulte}</p><small>Fotoğraf onay tarihi: ${DB.ogrenci.kayitTarihi}</small></div></div><div class="profile-details-container">${createProfileRow("Fakülte Giriş Türü", "SINAVSIZ İKİNCİ ÜNİVERSİTE")}${createProfileRow("Kayıt Tarihi", DB.ogrenci.kayitTarihi, "Yabancı Dil", "İNGİLİZCE")}${createProfileRow("Öğrenci Durum", DB.ogrenci.durum)}${createProfileRow("Büro", DB.ogrenci.buro)}${createProfileRow("Sınav Merkezi (Güncel)", DB.ogrenci.sinavMerkezi, "Sınav Merkezi(DÖNEM SONU)", DB.ogrenci.sinavMerkezi)}${createProfileRow("Ek Özellik", "YOK")}${createProfileRow("Sınav Engel Durumu", "YOK")}${createProfileRow("Özel Araç Gereç Kullanma Durumu", "YOK")}<div class="profile-row"><div class="row-item"><label>Askerlik Durum</label><span class="link-text" style="color:#3b82f6; text-decoration:underline;">--- Askerlik Durum Sorgula</span></div></div>${createProfileRow("Kayıt Yeniletmediği Dönem Sayısı", "0")}</div></div>`;
+            document.getElementById('view-profile').innerHTML = html;
+        }
+
+        function createProfileRow(label1, val1, label2 = null, val2 = null) {
+            let row = `<div class="profile-row"><div class="row-item"><label>${label1}</label><span>${val1}</span></div>`;
+            if (label2) row += `<div class="row-item"><label>${label2}</label><span>${val2}</span></div>`;
+            row += `</div>`;
+            return row;
+        }
+
+        function fotografYukle() { document.getElementById('file-upload').click(); }
+        function resmiGuncelle(event) {
+            var reader = new FileReader();
+            reader.onload = function(){ 
+                var base64Resim = reader.result; 
+                localStorage.setItem('kayitliProfilResmi', base64Resim);
+                const profImg = document.getElementById('profile-img');
+                if(profImg) profImg.src = base64Resim;
+                const dbAvatar = document.querySelector('.student-avatar');
+                if(dbAvatar) {
+                    document.querySelectorAll('.student-avatar i').forEach(i => i.style.display='none');
+                    dbAvatar.innerHTML = `<img src="${base64Resim}" style="width:100%; height:100%; object-fit:cover;">`;
+                }
+            };
+            if(event.target.files.length > 0) { reader.readAsDataURL(event.target.files[0]); }
+        }
+    </script>
+</body>
+</html>
