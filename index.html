@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <title>AÖF Öğrenci Portalı</title>
+
+    <link rel="icon" type="image/x-icon" href="https://www.anadolu.edu.tr/favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="https://www.anadolu.edu.tr/favicon.ico">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        /* --- TEMEL AYARLAR --- */
+        :root {
+            --primary-color: #b30000;
+            --bg-body: #f8f1f1;
+            --bg-card: #ffffff;
+            --text-main: #2d1111;
+            --border-color: #eccdcd;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode {
+            --primary-color: #ff4d4d;
+            --bg-body: #121212;
+            --bg-card: #1e1e1e;
+            --text-main: #e0e0e0;
+            --border-color: #333333;
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body {
+            margin: 0; padding: 0;
+            background-color: var(--bg-body); color: var(--text-main);
+            height: 100vh; overflow: hidden;
+        }
+
+        /* --- GİRİŞ EKRANI STİLLERİ --- */
+        #login-wrapper {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(135deg, var(--primary-color) 0%, #2d1111 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 2000;
+        }
+
+        .login-card {
+            background-color: var(--bg-card);
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%; max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+
+        .login-logo {
+            width: 80px; margin-bottom: 20px;
+        }
+
+        .login-title {
+            font-size: 20px; font-weight: 700; color: var(--text-main); margin-bottom: 30px;
+        }
+
+        /* Seçim Ekranı Butonları */
+        .login-choice-btn {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 15px; margin-bottom: 15px;
+            border: 2px solid #eee; border-radius: 12px;
+            background: white; color: #333;
+            font-weight: 600; font-size: 15px; cursor: pointer;
+            transition: all 0.2s; text-decoration: none;
+        }
+        
+        .login-choice-btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        
+        .btn-edevlet { border-color: #e53935; color: #e53935; }
+        .btn-edevlet:hover { background-color: #e53935; color: white; }
+        
+        .btn-student { border-color: var(--primary-color); color: var(--primary-color); }
+        .btn-student:hover { background-color: var(--primary-color); color: white; }
+
+        /* Öğrenci Formu */
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: var(--text-main); opacity: 0.7; }
+        .login-input {
+            width: 100%; padding: 12px; border: 2px solid #ddd;
+            border-radius: 10px; font-size: 14px; outline: none; transition: 0.2s;
+            background: var(--bg-body); color: var(--text-main);
+        }
+        .login-input:focus { border-color: var(--primary-color); }
+
+        .btn-submit {
+            width: 100%; padding: 12px; background-color: var(--primary-color);
+            color: white; border: none; border-radius: 10px;
+            font-weight: 600; font-size: 15px; cursor: pointer; margin-top: 10px;
+        }
+        .btn-submit:hover { opacity: 0.9; }
+
+        .btn-back {
+            background: none; border: none; color: #666; font-size: 13px;
+            margin-top: 15px; cursor: pointer; text-decoration: underline;
+        }
+
+        .error-msg {
+            color: red; font-size: 13px; margin-top: 10px; display: none; font-weight: 600;
+        }
+
+        /* --- ANA UYGULAMA (GİZLİ BAŞLAYACAK) --- */
+        #main-app { display: none; height: 100%; width: 100%; }
+
+        /* --- DİĞER CSS --- */
+        .sidebar { width: 280px; background-color: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 20px; height: 100vh; }
+        .content-area { flex: 1; padding: 40px; overflow-y: auto; width: 100%; display:flex; flex-direction:column; }
+        .grid-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .student-card, .course-card, .grade-card { background: var(--bg-card); padding: 20px; border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .sidebar-header { height: 50px; display: flex; align-items: center; justify-content: space-between; color: var(--primary-color); font-weight: 800; margin-bottom: 30px; }
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-list li a { display: flex; align-items: center; padding: 12px 15px; text-decoration: none; color: #7a5c5c; border-radius: 12px; font-weight: 500; font-size: 14px; margin-bottom: 8px; cursor: pointer; }
+        .menu-list li a.active, .menu-list li a:hover { background-color: rgba(179, 0, 0, 0.1); color: var(--primary-color); }
+        .menu-list li a i { margin-right: 12px; width: 20px; text-align: center; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .btn-logout { background: var(--bg-card); color: var(--primary-color); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 12px; cursor: pointer; font-weight: 600; }
+        .hidden-section { display: none; }
+        .status-table-container { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+        .status-table-header { background-color: #7a1f1f; color: white; padding: 15px; display: grid; grid-template-columns: 50px minmax(200px, 1fr) 100px 80px 50px; font-weight: bold; font-size: 13px; min-width: 600px; }
+        .status-table-row { padding: 15px; display: grid; grid-template-columns: 50px minmax(200px, 1fr) 100px 80px 50px; align-items: center; border-bottom: 1px solid var(--border-color); font-size: 13px; min-width: 600px; color: var(--text-main); }
+        .status-row-yellow { background-color: rgba(255, 204, 0, 0.1); }
+        
+        /* Loading Overlay & Spinner */
+        #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: var(--bg-sidebar); z-index: 3000; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .spinner { width: 50px; height: 50px; border: 5px solid rgba(179, 0, 0, 0.2); border-left-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Popup */
+        #announcement-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); z-index: 2999; align-items: center; justify-content: center; }
+        .modal-content { background: var(--bg-card); padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
+        
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; left: -100%; z-index: 2500; transition: 0.3s; }
+            .sidebar.active { left: 0; }
+            .mobile-menu-btn { display: block; font-size: 24px; margin-right: 15px; cursor: pointer; }
+            .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2400; }
+            .sidebar-overlay.active { display: block; }
+        }
+        @media (min-width: 769px) { .mobile-menu-btn, .sidebar-overlay { display: none; } }
+        
+        /* Profile CSS Details */
+        .profile-row { border-bottom: 1px solid var(--border-color); padding: 12px 0; display: flex; flex-wrap: wrap; gap: 10px; }
+        .row-item { flex: 1; min-width: 140px; }
+        .row-item label { display: block; font-size: 10px; color: #7a5c5c; font-weight: 600; }
+        .row-item span { font-size: 12px; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+    <div id="login-wrapper">
+        <div class="login-card">
+            <img src="univeriste.png" alt="Anadolu Üniversitesi" class="login-logo">
+            <h2 class="login-title">Öğrenci Girişi</h2>
+
+            <div id="login-selection">
+                <button class="login-choice-btn btn-student" onclick="showLoginForm()">
+                    <i class="fas fa-user-graduate"></i> Öğrenci Girişi
+                </button>
+                
+                <a href="https://giris.turkiye.gov.tr/Giris/" target="_blank" class="login-choice-btn btn-edevlet">
+                    <i class="fas fa-landmark"></i> e-Devlet Girişi
+                </a>
+            </div>
+
+            <div id="student-login-form" style="display: none;">
+                <div class="input-group">
+                    <label>Öğrenci No / T.C. Kimlik No</label>
+                    <input type="text" id="login-id" class="login-input" placeholder="">
+                </div>
+                <div class="input-group">
+                    <label>Şifre</label>
+                    <input type="password" id="login-pass" class="login-input" placeholder="">
+                </div>
+                
+                <div id="login-error" class="error-msg">Hatalı öğrenci no veya şifre!</div>
+
+                <button class="btn-submit" onclick="attemptLogin()">Giriş Yap</button>
+                <button class="btn-back" onclick="showSelection()">← Geri Dön</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main-app">
+        <div id="loading-overlay">
+            <div class="spinner"></div>
+            <div class="loading-text" style="color: #b30000;">Veriler alınıyor...</div>
+        </div>
+
+        <div id="announcement-modal">
+            <div class="modal-content">
+                <span style="position:absolute; right:20px; top:15px; cursor:pointer; font-size:24px;" onclick="closeModal()">×</span>
+                <h3 style="color:#b30000; margin-top:0;">DUYURU</h3>
+                <p>Güz dönemi sonu sonuçları açıklandı.</p>
+                <img src="https://images.pexels.com/photos/590022/pexels-photo-590022.jpeg?auto=compress&cs=tinysrgb&w=600" style="width:100%; border-radius:10px; margin-bottom:15px;">
+                <button onclick="goToGrades()" style="background:#b30000; color:white; border:none; padding:12px; width:100%; border-radius:20px; font-weight:bold; cursor:pointer;">Sonuçları Görüntüle</button>
+            </div>
+        </div>
+
+        <div class="sidebar-overlay" onclick="toggleMenu()"></div>
+
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="univeriste.png" style="height:40px; object-fit:contain;">
+                    <span>ÖĞRENCİ PANELİ</span>
+                </div>
+                <i class="fas fa-moon" id="theme-icon" style="cursor:pointer; color:#7a5c5c;" onclick="toggleTheme()"></i>
+            </div>
+            <ul class="menu-list">
+                <li><a onclick="switchView('dashboard')" id="menu-dashboard" class="active"><i class="fas fa-home"></i> Ana Sayfa</a></li>
+                <li><a onclick="switchView('profile')" id="menu-profile"><i class="fas fa-user"></i> Profil Bilgileri</a></li>
+                <li><a onclick="switchView('course-status')" id="menu-course-status"><i class="fas fa-book-open"></i> Ders Durumu</a></li>
+                <li><a onclick="switchView('grades')" id="menu-grades"><i class="fas fa-file-alt"></i> Not Görüntüle</a></li>
+                <li><a href="#"><i class="fas fa-graduation-cap"></i> Mezuniyet</a></li>
+                <li><a href="https://aosdestek.anadolu.edu.tr/canli-destek" target="_blank"><i class="fas fa-headset"></i> Canlı Destek</a></li>
+            </ul>
+        </div>
+
+        <div class="content-area">
+            <div class="top-bar">
+                <div style="display:flex; align-items:center;">
+                    <i class="fas fa-bars mobile-menu-btn" onclick="toggleMenu()"></i>
+                    <h2 id="page-title">Öğrenci Paneli</h2>
+                </div>
+                <button class="btn-logout" onclick="location.reload()">Oturumu Kapat</button>
+            </div>
+
+            <div id="view-dashboard"></div>
+            <div id="view-grades" class="hidden-section"></div>
+            <div id="view-course-status" class="hidden-section"></div>
+            <div id="view-profile" class="hidden-section"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- GİRİŞ İŞLEMLERİ ---
+        const CORRECT_ID = "25719032";
+        const CORRECT_PASS = "se_um22351";
+
+        function showLoginForm() {
+            document.getElementById('login-selection').style.display = 'none';
+            document.getElementById('student-login-form').style.display = 'block';
+        }
+
+        function showSelection() {
+            document.getElementById('student-login-form').style.display = 'none';
+            document.getElementById('login-selection').style.display = 'flex';
+            document.getElementById('login-error').style.display = 'none';
+        }
+
+        function attemptLogin() {
+            const idVal = document.getElementById('login-id').value;
+            const passVal = document.getElementById('login-pass').value;
+
+            if (idVal === CORRECT_ID && passVal === CORRECT_PASS) {
+                document.getElementById('login-wrapper').style.display = 'none';
+                document.getElementById('main-app').style.display = 'flex';
+                startAppFlow();
+            } else {
+                document.getElementById('login-error').style.display = 'block';
+            }
+        }
+
+        // --- ANA UYGULAMA AKIŞI ---
+        function startAppFlow() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.display = 'none';
+                setTimeout(() => {
+                    document.getElementById('announcement-modal').style.display = 'flex';
+                }, 300);
+            }, 1500);
+        }
+
+        // --- DİĞER FONKSİYONLAR ---
+        function switchView(viewName) {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.display = 'none';
+                ['dashboard', 'grades', 'course-status', 'profile'].forEach(v => {
+                    document.getElementById('view-' + v).style.display = 'none';
+                    document.getElementById('menu-' + v).classList.remove('active');
+                });
+                document.getElementById('view-' + viewName).style.display = 'block';
+                document.getElementById('menu-' + viewName).classList.add('active');
+                
+                if(window.innerWidth <= 768) toggleMenu();
+
+                const titles = { 'dashboard': 'Öğrenci Paneli', 'grades': 'Not Görüntüle', 'course-status': 'Ders Durumu', 'profile': 'Profil Bilgileri' };
+                document.getElementById('page-title').innerText = titles[viewName];
+            }, 800);
+        }
+
+        function closeModal() { document.getElementById('announcement-modal').style.display = 'none'; }
+        function goToGrades() { closeModal(); switchView('grades'); }
+        function toggleMenu() { 
+            document.getElementById('sidebar').classList.toggle('active'); 
+            document.querySelector('.sidebar-overlay').classList.toggle('active');
+        }
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+            const icon = document.getElementById('theme-icon');
+            icon.classList.replace(document.body.classList.contains('dark-mode') ? 'fa-moon' : 'fa-sun', document.body.classList.contains('dark-mode') ? 'fa-sun' : 'fa-moon');
+        }
+
+        // --- VERİTABANI & RENDER ---
+        const DB = {
+            ogrenci: { ad: "Sercan Umut Taşcı", bolum: "YÖNETİM BİLİŞİM SİSTEMLERİ", fakulte: "AÇIKÖĞRETİM FAKÜLTESİ", kayitTarihi: "18.09.2025", durum: "AKTİF", buro: "ESKİŞEHİR", sinavMerkezi: "KIRIKKALE" },
+            aktifDersler: [ { kod: "IKT101", ad: "İktisada Giriş I" }, { kod: "MUH101", ad: "Muhasebeye Giriş I" }, { kod: "ISL101", ad: "İşletme İlkeleri I" }, { kod: "ING101", ad: "İngilizce I" }, { kod: "MAT101", ad: "Matematik I" } ],
+            notlar: [
+                { ad: "İktisada Giriş 1", vize: 52, final: 64, harf: "CC", renk: "bg-mid" },
+                { ad: "İngilizce 1", vize: 88, final: 96, harf: "AA", renk: "bg-high" },
+                { ad: "Muhasebeye Giriş 1", vize: 70, final: 54, harf: "CC", renk: "bg-mid" },
+                { ad: "Matematik 1", vize: 48, final: 54, harf: "DC", renk: "bg-mid" },
+                { ad: "İşletme İlkeleri 1", vize: 74, final: 88, harf: "BA", renk: "bg-high" }
+            ],
+            mufredat: [
+                { donem: 1, kod: "IKT101U", ad: "İKTİSADA GİRİŞ", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "ING101U", ad: "İNGİLİZCE I", kredi: "3,0", aktif: true },
+                { donem: 1, kod: "ISL105U", ad: "İŞLETME İLKELERİ", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "MAT105U", ad: "MATEMATİK I", kredi: "6,0", aktif: true },
+                { donem: 1, kod: "MUH101U", ad: "GENEL MUHASEBE", kredi: "5,0", aktif: true },
+                { donem: 1, kod: "YBS101U", ad: "BİLİŞİM TEKNOLOJİLERİ", kredi: "6,0", aktif: true },
+                { donem: 2, kod: "HUK124U", ad: "BİLİŞİM HUKUKU", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "IKT102U", ad: "PROJE YÖNETİMİ", kredi: "6,0", aktif: false },
+                { donem: 2, kod: "ILT102U", ad: "YENİ İLETİŞİM TEKNOLOJİLERİ", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "ING102U", ad: "İNGİLİZCE II", kredi: "3,0", aktif: false },
+                { donem: 2, kod: "ISL106U", ad: "İŞLETME FONKSİYONLARI", kredi: "5,0", aktif: false },
+                { donem: 2, kod: "MAT106U", ad: "MATEMATİK II", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "IST203U", ad: "İSTATİSTİK", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "TAR201U", ad: "ATATÜRK İLK. VE İNK. TARİHİ I", kredi: "3,0", aktif: false },
+                { donem: 3, kod: "TUR201U", ad: "TÜRK DİLİ I", kredi: "3,0", aktif: false },
+                { donem: 3, kod: "YBS201U", ad: "BİLG. VE PROGRAMLAMAYA GİRİŞ", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "YBS203U", ad: "İŞLEM TABLOLARI", kredi: "6,0", aktif: false },
+                { donem: 3, kod: "YBS207U", ad: "BİLİŞİM SİSTEMLERİ", kredi: "6,0", aktif: false }
+            ]
+        };
+
+        window.onload = function() {
+            renderDashboard(); renderGrades(); renderCourseStatus(); renderProfile();
+            const kayitliResim = localStorage.getItem('kayitliProfilResmi');
+            if(kayitliResim) {
+                 setTimeout(() => {
+                    const dbAvatar = document.querySelector('.student-avatar');
+                    if(dbAvatar) {
+                        dbAvatar.innerHTML = `<img src="${kayitliResim}" style="width:100%; height:100%; object-fit:cover;">`;
+                    }
+                    const profImg = document.getElementById('profile-img');
+                    if(profImg) profImg.src = kayitliResim;
+                }, 100);
+            }
+        }
+
+        // Render Functions
+        function renderDashboard() {
+            let html = `
+            <div class="student-card" style="display:flex; align-items:center; gap:20px;">
+                <div class="student-avatar" style="width:60px; height:60px; background:rgba(255,51,51,0.1); border-radius:50%; display:flex; align-items:center; justify-content:center; color:#b30000; font-size:24px; overflow:hidden;">
+                    <i class="fas fa-user"></i>
+                </div>
+                <div>
+                    <h3 style="margin:0; font-size:18px;">${DB.ogrenci.ad}</h3>
+                    <p style="margin:5px 0; font-size:12px; color:#7a5c5c;">${DB.ogrenci.bolum}</p>
+                    <span style="background:rgba(220,252,231,0.5); color:#166534; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:600;">Aktif Öğrenci</span>
+                </div>
+            </div>
+            <h3>Bu Dönem Derslerim</h3><div class="grid-container">`;
+            DB.aktifDersler.forEach(ders => {
+                html += `<div class="course-card"><div style="display:flex; justify-content:space-between; border-bottom:1px solid #eccdcd; padding-bottom:10px; margin-bottom:10px;"><span style="font-weight:700; color:#b30000; background:rgba(255,51,51,0.1); padding:5px 10px; border-radius:6px; font-size:12px;">${ders.kod}</span><span style="color:#b30000; font-size:12px; font-weight:600;"><i class="fas fa-check-circle"></i> Kayıtlı</span></div><h4>${ders.ad}</h4></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-dashboard').innerHTML = html;
+        }
+
+        function renderGrades() {
+            let html = `<h3>Not Durum Belgesi</h3><div class="grid-container">`;
+            DB.notlar.forEach(not => {
+                html += `<div class="grade-card" style="display:flex; justify-content:space-between; align-items:center;"><div class="grade-info"><h4 style="margin:0 0 5px 0;">${not.ad}</h4><div style="font-size:13px; color:#7a5c5c; display:flex; gap:10px;"><span style="border:1px solid #eccdcd; padding:4px 8px; border-radius:6px;">Vize: ${not.vize}</span><span style="border:1px solid #eccdcd; padding:4px 8px; border-radius:6px;">Final: ${not.final}</span></div></div><div class="letter-grade-box ${not.renk}" style="color:white; width:50px; height:50px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:bold;">${not.harf}</div></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-grades').innerHTML = html;
+        }
+
+        function renderCourseStatus() {
+            let html = `<h3 style="margin-bottom:20px;">Ders Durumu</h3><div class="status-table-container"><div class="status-table-header"><span>Dnm</span><span>Ders Kodu / Ders Adı</span><span>Statü</span><span>Kredi</span><span>Not</span></div>`;
+            DB.mufredat.forEach(ders => {
+                const rowClass = ders.aktif ? 'status-row-yellow' : 'status-row-grey';
+                html += `<div class="status-table-row ${rowClass}"><span style="padding-left:15px; position:relative;">${ders.donem}<span style="position:absolute; left:5px; top:50%; transform:translateY(-50%); font-size:8px;">●</span></span><span>${ders.kod} &nbsp; ${ders.ad}</span><span>ZORUNLU</span><span>${ders.kredi}</span><span></span></div>`;
+            });
+            html += `</div>`;
+            document.getElementById('view-course-status').innerHTML = html;
+        }
+
+        function renderProfile() {
+            const html = `<h3 style="margin-bottom:20px;">Profil Bilgileri</h3><div id="view-profile"><div class="profile-header-section" style="display:flex; gap:15px; padding:20px; background:rgba(0,0,0,0.05); border-bottom:1px solid #eccdcd; align-items:center;"><div style="width:80px; height:100px; background:#000; position:relative; flex-shrink:0;"><img id="profile-img" src="vesikalik.png" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://via.placeholder.com/100x120?text=FOTO'"><div class="edit-overlay" onclick="document.getElementById('file-upload').click()" style="position:absolute; bottom:0; width:100%; background:rgba(0,0,0,0.7); color:white; font-size:10px; text-align:center; cursor:pointer;">Düzenle</div></div><div class="profile-text-info"><h2 style="margin:0;">${DB.ogrenci.ad.toUpperCase()}</h2><p style="margin:2px 0; font-size:12px; color:#7a5c5c;">${DB.ogrenci.bolum}</p><p style="margin:2px 0; font-size:12px; color:#7a5c5c;">${DB.ogrenci.fakulte}</p><small style="font-size:10px; color:#7a5c5c;">Fotoğraf onay tarihi: ${DB.ogrenci.kayitTarihi}</small></div></div><div class="profile-details-container" style="padding:0 20px;">${createProfileRow("Fakülte Giriş Türü", "SINAVSIZ İKİNCİ ÜNİVERSİTE")}${createProfileRow("Kayıt Tarihi", DB.ogrenci.kayitTarihi, "Yabancı Dil", "İNGİLİZCE")}${createProfileRow("Öğrenci Durum", DB.ogrenci.durum)}${createProfileRow("Büro", DB.ogrenci.buro)}${createProfileRow("Sınav Merkezi (Güncel)", DB.ogrenci.sinavMerkezi, "Sınav Merkezi(DÖNEM SONU)", DB.ogrenci.sinavMerkezi)}${createProfileRow("Ek Özellik", "YOK")}${createProfileRow("Sınav Engel Durumu", "YOK")}${createProfileRow("Özel Araç Gereç Kullanma Durumu", "YOK")}<div class="profile-row"><div class="row-item"><label>Askerlik Durum</label><span style="color:#3b82f6; text-decoration:underline; cursor:pointer;">--- Askerlik Durum Sorgula</span></div></div>${createProfileRow("Kayıt Yeniletmediği Dönem Sayısı", "0")}</div></div>`;
+            document.getElementById('view-profile').innerHTML = html;
+        }
+
+        function createProfileRow(l1, v1, l2=null, v2=null) {
+            let row = `<div class="profile-row"><div class="row-item"><label>${l1}</label><span>${v1}</span></div>`;
+            if(l2) row += `<div class="row-item"><label>${l2}</label><span>${v2}</span></div>`;
+            row += `</div>`; return row;
+        }
+
+        function resmiGuncelle(event) {
+            var reader = new FileReader();
+            reader.onload = function(){ 
+                var base64Resim = reader.result; 
+                localStorage.setItem('kayitliProfilResmi', base64Resim);
+                const profImg = document.getElementById('profile-img');
+                if(profImg) profImg.src = base64Resim;
+                const dbAvatar = document.querySelector('.student-avatar');
+                if(dbAvatar) dbAvatar.innerHTML = `<img src="${base64Resim}" style="width:100%; height:100%; object-fit:cover;">`;
+            };
+            if(event.target.files.length > 0) { reader.readAsDataURL(event.target.files[0]); }
+        }
+    </script>
+</body>
+</html>
