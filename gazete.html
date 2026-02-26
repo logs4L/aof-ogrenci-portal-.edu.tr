@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gazete Tasarımcısı</title>
+
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: { extend: {} }
+        }
+    </script>
+
+    <!-- FontAwesome İkonları (CDN) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- React ve Modern Babel Kütüphaneleri (CDN) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- İndirme Araçları: html2canvas ve gifshot (CDN) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gifshot/0.3.2/gifshot.min.js"></script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d4d4d8; border-radius: 10px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #52525b; }
+        body { margin: 0; padding: 0; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-neutral-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Varsayılan Resim Üretici
+        const getPlaceholder = (text) => `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23e5e5e5"/%3E%3Ctext x="50%25" y="50%25" font-family="sans-serif" font-size="20" fill="%23999999" text-anchor="middle" dominant-baseline="middle"%3E${encodeURIComponent(text)}%3C/text%3E%3C/svg%3E`;
+
+        // Resim Sıkıştırma Aracı (Performans için)
+        const processImage = (file) => new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    let width = img.width; let height = img.height;
+                    if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function App() {
+            const [elements, setElements] = useState([]);
+            const [selectedId, setSelectedId] = useState(null);
+            
+            const [isExporting, setIsExporting] = useState(false);
+            const [pageCount, setPageCount] = useState(1);
+            const [snapToGrid, setSnapToGrid] = useState(false);
+            const [isDarkMode, setIsDarkMode] = useState(true);
+
+            const [history, setHistory] = useState([[]]);
+            const [historyStep, setHistoryStep] = useState(0);
+
+            const [bgImage, setBgImage] = useState(null);
+            const [savedPapers, setSavedPapers] = useState([]);
+            const [showSavedModal, setShowSavedModal] = useState(false);
+            const [isSaving, setIsSaving] = useState(false);
+            const [toastMsg, setToastMsg] = useState('');
+            
+            const paperRef = useRef(null);
+            const fileInputRef = useRef(null);
+            const bgInputRef = useRef(null);
+
+            // Uygulama açıldığında geçmiş kayıtları yükle
+            useEffect(() => {
+                const saved = localStorage.getItem('gazete_arsiv');
+                if(saved) setSavedPapers(JSON.parse(saved));
+                loadTemplate('page1', true);
+            }, []);
+
+            const showToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 3000); };
+
+            const commitHistory = (newElements) => {
+                const newHistory = history.slice(0, historyStep + 1);
+                newHistory.push(newElements);
+                setHistory(newHistory);
+                setHistoryStep(newHistory.length - 1);
+                setElements(newElements);
+            };
+
+            const undo = () => { if (historyStep > 0) { setHistoryStep(historyStep - 1); setElements(history[historyStep - 1]); setSelectedId(null); } };
+            const redo = () => { if (historyStep < history.length - 1) { setHistoryStep(historyStep + 1); setElements(history[historyStep + 1]); setSelectedId(null); } };
+
+            const getBaseProps = () => ({ id: Date.now(), zIndex: 10, isLocked: false, bold: false, italic: false, underline: false, align: 'left' });
+
+            const loadTemplate = (type, skipConfirm = false) => {
+                if (!skipConfirm && elements.length > 0 && !window.confirm("Mevcut tasarımınız silinecek. Emin misiniz?")) return;
+                const baseTime = Date.now();
+                let newElements = [];
+                if (type === 'page1') {
+                newElements = [
+                    { ...getBaseProps(), id: baseTime + 1, type: 'text', textType: 'headline', content: 'GÜNLÜK GAZETE', fontFamily: "'Times New Roman', Times, serif", color: '#171717', x: 197, y: 50, width: 400, height: 70, align: 'center', bold: true },
+                    { ...getBaseProps(), id: baseTime + 2, type: 'line', orientation: 'horizontal', color: '#000000', x: 50, y: 130, width: 694, height: 4 },
+                    { ...getBaseProps(), id: baseTime + 3, type: 'line', orientation: 'horizontal', color: '#000000', x: 50, y: 180, width: 694, height: 2 },
+                ];
+                } else if (type === 'page2') {
+                newElements = [
+                    { ...getBaseProps(), id: baseTime + 1, type: 'text', textType: 'subheadline', content: 'İÇ SAYFA', fontFamily: "'Times New Roman', Times, serif", color: '#171717', x: 197, y: 50, width: 400, height: 50, align: 'center', bold: true },
+                    { ...getBaseProps(), id: baseTime + 2, type: 'line', orientation: 'horizontal', color: '#000000', x: 50, y: 110, width: 694, height: 2 },
+                ];
+                }
+                setPageCount(1); commitHistory(newElements); setSelectedId(null);
+            };
+
+            const addTextElement = (type, defaultText, x = 50, y = 50) => {
+                const newElements = [...elements, { ...getBaseProps(), type: 'text', textType: type, content: defaultText, fontFamily: "'Times New Roman', Times, serif", color: '#171717', x, y, width: type === 'paragraph' ? 300 : type === 'headline' ? 400 : 250, height: type === 'paragraph' ? 150 : 60, align: type === 'paragraph' ? 'justify' : 'center', bold: type === 'headline' || type === 'subheadline', italic: type === 'subheadline' }];
+                commitHistory(newElements); setSelectedId(newElements[newElements.length-1].id);
+            };
+
+            const addDateElement = () => {
+                const today = new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' });
+                const newElements = [...elements, { ...getBaseProps(), type: 'text', textType: 'date', content: today, fontFamily: "Arial, sans-serif", color: '#404040', x: 50, y: 145, width: 694, height: 30, align: 'center', bold: true }];
+                commitHistory(newElements); setSelectedId(newElements[newElements.length-1].id);
+            };
+
+            const addLineElement = () => {
+                const newElements = [...elements, { ...getBaseProps(), type: 'line', orientation: 'horizontal', x: 50, y: 300, width: 400, height: 4, color: '#000000' }];
+                commitHistory(newElements); setSelectedId(newElements[newElements.length-1].id);
+            };
+
+            const addColumnElement = () => {
+                const newElements = [...elements, { ...getBaseProps(), type: 'author-column', url: getPlaceholder('Yazar'), authorName: 'Yazar Adı', content: 'Köşe yazınızı buraya yazabilirsiniz.', fontFamily: "Georgia, serif", color: '#171717', x: 50, y: 50, width: 260, height: 300, align: 'justify' }];
+                commitHistory(newElements); setSelectedId(newElements[newElements.length-1].id);
+            };
+
+            const handleImageUpload = async (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const url = await processImage(file);
+                const newElements = [...elements, { ...getBaseProps(), type: 'image', url, credit: '', x: 100, y: 150, width: 300, height: 200 }];
+                commitHistory(newElements); setSelectedId(newElements[newElements.length-1].id); e.target.value = '';
+            };
+
+            const updateElementStateOnly = (id, newProps) => setElements(prev => prev.map(el => el.id === id ? { ...el, ...newProps } : el));
+            const updateElementAndCommit = (id, newProps) => { const newElements = elements.map(el => el.id === id ? { ...el, ...newProps } : el); commitHistory(newElements); };
+            const deleteElement = (id) => { const newElements = elements.filter(el => el.id !== id); commitHistory(newElements); if (selectedId === id) setSelectedId(null); };
+
+            const changeLayer = (id, direction) => {
+                const el = elements.find(e => e.id === id); if(!el) return;
+                const newZ = direction === 'up' ? (el.zIndex || 10) + 1 : Math.max(1, (el.zIndex || 10) - 1);
+                updateElementAndCommit(id, { zIndex: newZ });
+            };
+
+            const toggleLineOrientation = (id, newOrientation) => { const el = elements.find(e => e.id === id); if (el.orientation !== newOrientation) updateElementAndCommit(id, { orientation: newOrientation, width: el.height, height: el.width }); };
+            const changeLineThickness = (id, thickness) => { const el = elements.find(e => e.id === id); updateElementAndCommit(id, el.orientation === 'vertical' ? { width: thickness } : { height: thickness }); };
+            const changeLineLength = (id, length) => { const el = elements.find(e => e.id === id); updateElementAndCommit(id, el.orientation === 'vertical' ? { height: length } : { width: length }); };
+
+            const handleExportGIF = async () => {
+                if (!paperRef.current || !window.html2canvas || !window.gifshot) return;
+                setIsExporting(true); setSelectedId(null);
+                try {
+                    await new Promise(r => setTimeout(r, 150));
+                    const images = [];
+                    for (let i = 0; i < pageCount; i++) {
+                        const canvas = await window.html2canvas(paperRef.current, { scale: 1, useCORS: true, backgroundColor: null, y: i * 1123, height: 1123, windowHeight: 1123 });
+                        images.push(canvas.toDataURL('image/jpeg', 0.8));
+                    }
+                    if (images.length === 1) images.push(images[0]);
+                    window.gifshot.createGIF({ images: images, gifWidth: 794, gifHeight: 1123, interval: 1.5 }, function(obj) {
+                        if(!obj.error) { const link = document.createElement('a'); link.download = `gazetem-${Date.now()}.gif`; link.href = obj.image; link.click(); }
+                        else alert('GIF oluşturulamadı.');
+                        setIsExporting(false);
+                    });
+                } catch (err) { alert('Hata oluştu.'); console.error(err); setIsExporting(false); }
+            };
+
+            // LOCALSTORAGE KAYIT
+            const savePaper = () => {
+                setIsSaving(true);
+                try { 
+                    const newPaper = { id: Date.now().toString(), createdAt: Date.now(), elements, bgImage, pageCount };
+                    const updated = [newPaper, ...savedPapers];
+                    localStorage.setItem('gazete_arsiv', JSON.stringify(updated));
+                    setSavedPapers(updated);
+                    showToast("Yerel belleğe kaydedildi! 🗞️"); 
+                } catch (err) { showToast("Kayıt hatası!"); } 
+                finally { setIsSaving(false); }
+            };
+
+            const loadSavedPaper = (paper) => {
+                if (!window.confirm("Mevcut tasarım silinecek. Emin misiniz?")) return;
+                setElements(paper.elements || []); setBgImage(paper.bgImage || null); setPageCount(paper.pageCount || 1); setHistory([paper.elements || []]); setHistoryStep(0); setSelectedId(null); setShowSavedModal(false);
+            };
+
+            const deleteSavedPaper = (paperId) => { 
+                if (window.confirm("Kalıcı olarak silinecek, emin misiniz?")) { 
+                    const updated = savedPapers.filter(p => p.id !== paperId);
+                    localStorage.setItem('gazete_arsiv', JSON.stringify(updated));
+                    setSavedPapers(updated);
+                    showToast("Silindi."); 
+                } 
+            };
+
+            const selectedEl = elements.find(el => el.id === selectedId);
+
+            return (
+                <div className={isDarkMode ? 'dark' : ''}>
+                <div className="flex h-screen bg-neutral-200 dark:bg-neutral-900 font-sans overflow-hidden text-neutral-900 dark:text-neutral-100 transition-colors duration-300">
+                    
+                    {toastMsg && <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-6 py-3 rounded-full shadow-2xl font-medium text-sm transition-colors">{toastMsg}</div>}
+
+                    {showSavedModal && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                        <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl w-[500px] max-h-[80vh] flex flex-col overflow-hidden border border-neutral-200 dark:border-neutral-800 transition-colors">
+                        <div className="p-5 bg-neutral-50 dark:bg-neutral-800/50 border-b border-neutral-200 dark:border-neutral-800 flex justify-between items-center transition-colors">
+                            <div><h2 className="font-bold text-neutral-800 dark:text-white">Önceki Gazetelerim</h2></div>
+                            <button onClick={() => setShowSavedModal(false)}><i className="fa-solid fa-xmark text-lg text-neutral-400 hover:text-red-500"></i></button>
+                        </div>
+                        <div className="p-5 flex-1 overflow-y-auto bg-neutral-100 dark:bg-neutral-950 transition-colors">
+                            {savedPapers.length === 0 ? <p className="text-center text-neutral-500 py-10">Kayıtlı gazeteniz yok.</p> : (
+                            <div className="space-y-3">
+                                {savedPapers.map(paper => (
+                                <div key={paper.id} className="bg-white dark:bg-neutral-800 p-4 rounded-xl shadow-sm border border-neutral-200 dark:border-neutral-700 flex justify-between transition-colors">
+                                    <div><p className="font-bold text-sm text-neutral-900 dark:text-neutral-100">Arşivlenmiş Sayfa ({paper.pageCount || 1} Sayfa)</p><p className="text-xs text-neutral-500 dark:text-neutral-400">{new Date(paper.createdAt).toLocaleString('tr-TR')}</p></div>
+                                    <div className="flex gap-2"><button onClick={() => loadSavedPaper(paper)} className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors">Yükle</button><button onClick={() => deleteSavedPaper(paper.id)} className="px-3 py-2 text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 rounded transition-colors"><i className="fa-solid fa-trash-can"></i></button></div>
+                                </div>
+                                ))}
+                            </div>
+                            )}
+                        </div>
+                        </div>
+                    </div>
+                    )}
+
+                    {/* SOL PANEL */}
+                    <div className="w-[320px] bg-white dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 shadow-xl flex flex-col z-10 shrink-0 transition-colors">
+                    <div className="p-5 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-800/50 transition-colors">
+                        <div className="flex justify-between items-start mb-2">
+                        <div><h1 className="text-2xl font-black text-neutral-800 dark:text-white font-serif">Gazete<br/>Tasarımcısı</h1></div>
+                        <div className="flex flex-col gap-2 items-end">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 text-neutral-600 dark:text-neutral-300 bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors">
+                                {isDarkMode ? <i className="fa-solid fa-sun text-base w-4 text-center"></i> : <i className="fa-solid fa-moon text-base w-4 text-center"></i>}
+                            </button>
+                            <div className="flex bg-white dark:bg-neutral-800 rounded-lg border border-neutral-200 dark:border-neutral-700 shadow-sm transition-colors">
+                            <button onClick={undo} disabled={historyStep === 0} className="p-2 text-neutral-600 dark:text-neutral-300 disabled:opacity-30 hover:bg-neutral-100 dark:hover:bg-neutral-700 border-r border-neutral-200 dark:border-neutral-700"><i className="fa-solid fa-rotate-left text-base w-4 text-center"></i></button>
+                            <button onClick={redo} disabled={historyStep === history.length - 1} className="p-2 text-neutral-600 dark:text-neutral-300 disabled:opacity-30 hover:bg-neutral-100 dark:hover:bg-neutral-700"><i className="fa-solid fa-rotate-right text-base w-4 text-center"></i></button>
+                            </div>
+                        </div>
+                        </div>
+                        <div className="flex items-center mt-3 justify-between bg-white dark:bg-neutral-800 p-2 border border-neutral-200 dark:border-neutral-700 rounded-lg transition-colors"><span className="text-xs font-bold text-neutral-600 dark:text-neutral-300 flex items-center"><i className="fa-solid fa-border-none mr-1 text-indigo-500"></i> Izgara Hizalaması</span><input type="checkbox" checked={snapToGrid} onChange={(e) => setSnapToGrid(e.target.checked)} className="w-4 h-4 accent-indigo-600" /></div>
+                        <div className="flex gap-2 mt-3"><button onClick={savePaper} disabled={isSaving} className="flex-1 flex items-center justify-center p-2 text-xs font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-70 transition-colors"><i className="fa-solid fa-floppy-disk mr-1"></i> Kaydet</button><button onClick={() => setShowSavedModal(true)} className="flex-1 flex items-center justify-center p-2 text-xs font-bold text-neutral-700 dark:text-neutral-200 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-folder-open mr-1"></i> Kayıtlar</button></div>
+                    </div>
+
+                    <div className="p-4 flex-1 overflow-y-auto space-y-5 custom-scrollbar">
+                        {selectedEl && (
+                        <div className="space-y-3 p-4 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-900/30 shadow-inner transition-colors">
+                            <div className="flex justify-between items-center mb-1"><h2 className="text-xs font-bold text-blue-800 dark:text-blue-400 uppercase">Öğe Ayarları</h2><button onClick={() => updateElementAndCommit(selectedId, { isLocked: !selectedEl.isLocked })} className={`p-1.5 rounded transition-colors ${selectedEl.isLocked ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-white dark:bg-neutral-800 text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 border border-transparent dark:border-neutral-700'}`} title={selectedEl.isLocked ? "Kilidi Aç" : "Kilitle"}>{selectedEl.isLocked ? <i className="fa-solid fa-lock w-4 text-center"></i> : <i className="fa-solid fa-unlock w-4 text-center"></i>}</button></div>
+                            <div className="flex gap-2 mb-3"><button onClick={() => changeLayer(selectedId, 'up')} className="flex-1 flex justify-center items-center py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-arrow-up text-xs mr-1"></i> Öne Getir</button><button onClick={() => changeLayer(selectedId, 'down')} className="flex-1 flex justify-center items-center py-1.5 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded text-xs font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-arrow-down text-xs mr-1"></i> Arkaya Gönder</button></div>
+
+                            {selectedEl.type !== 'image' && selectedEl.type !== 'line' && (
+                            <React.Fragment>
+                                <select className="w-full p-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none mb-2 transition-colors" value={selectedEl.fontFamily || "'Times New Roman', Times, serif"} onChange={(e) => updateElementAndCommit(selectedId, { fontFamily: e.target.value })}><option value="'Times New Roman', Times, serif">Times New Roman</option><option value="Georgia, serif">Georgia</option><option value="Arial, sans-serif">Arial</option><option value="'Courier New', Courier, monospace">Daktilo (Courier)</option><option value="'Impact', sans-serif">Manşet (Impact)</option></select>
+                                <div className="flex bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden mb-2 transition-colors"><button onClick={() => updateElementAndCommit(selectedId, { bold: !selectedEl.bold })} className={`flex-1 p-2 flex justify-center border-r border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.bold ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-bold text-base"></i></button><button onClick={() => updateElementAndCommit(selectedId, { italic: !selectedEl.italic })} className={`flex-1 p-2 flex justify-center border-r border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.italic ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-italic text-base"></i></button><button onClick={() => updateElementAndCommit(selectedId, { underline: !selectedEl.underline })} className={`flex-1 p-2 flex justify-center transition-colors ${selectedEl.underline ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-underline text-base"></i></button></div>
+                                <div className="flex bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden mb-3 transition-colors"><button onClick={() => updateElementAndCommit(selectedId, { align: 'left' })} className={`flex-1 p-2 flex justify-center border-r border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.align === 'left' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-align-left text-base"></i></button><button onClick={() => updateElementAndCommit(selectedId, { align: 'center' })} className={`flex-1 p-2 flex justify-center border-r border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.align === 'center' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-align-center text-base"></i></button><button onClick={() => updateElementAndCommit(selectedId, { align: 'right' })} className={`flex-1 p-2 flex justify-center border-r border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.align === 'right' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-align-right text-base"></i></button><button onClick={() => updateElementAndCommit(selectedId, { align: 'justify' })} className={`flex-1 p-2 flex justify-center transition-colors ${selectedEl.align === 'justify' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}><i className="fa-solid fa-align-justify text-base"></i></button></div>
+                                <div><label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Metin Rengi</label><div className="flex gap-2">{['#000000', '#ffffff', '#404040', '#991b1b', '#1e3a8a'].map(color => (<button key={color} className={`w-7 h-7 rounded-full border-2 transition-transform ${selectedEl.color === color ? 'border-blue-500 scale-110' : 'border-neutral-300 dark:border-neutral-600'}`} style={{ backgroundColor: color }} onClick={() => updateElementAndCommit(selectedId, { color })}/>))}</div></div>
+                            </React.Fragment>
+                            )}
+
+                            {selectedEl.type === 'line' && (
+                            <div className="pt-2 border-t border-blue-200 dark:border-blue-900/30 space-y-3">
+                                <div><label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Çizgi Yönü</label><div className="flex bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-lg overflow-hidden transition-colors"><button onClick={() => toggleLineOrientation(selectedId, 'horizontal')} className={`flex-1 p-2 text-xs font-bold transition-colors ${selectedEl.orientation !== 'vertical' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}>Yatay</button><button onClick={() => toggleLineOrientation(selectedId, 'vertical')} className={`flex-1 p-2 text-xs font-bold border-l border-neutral-200 dark:border-neutral-700 transition-colors ${selectedEl.orientation === 'vertical' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-700'}`}>Dikey</button></div></div>
+                                <div className="flex gap-2"><div className="flex-1"><label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Kalınlık (px)</label><input type="number" min="1" max="200" value={selectedEl.orientation === 'vertical' ? selectedEl.width : selectedEl.height} onChange={(e) => changeLineThickness(selectedId, parseInt(e.target.value) || 1)} className="w-full p-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:border-blue-400 transition-colors" /></div><div className="flex-1"><label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Uzunluk (px)</label><input type="number" min="10" value={selectedEl.orientation === 'vertical' ? selectedEl.height : selectedEl.width} onChange={(e) => changeLineLength(selectedId, parseInt(e.target.value) || 10)} className="w-full p-2 text-sm border border-neutral-200 dark:border-neutral-700 rounded bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 outline-none focus:border-blue-400 transition-colors" /></div></div>
+                                <div><label className="text-xs text-neutral-500 dark:text-neutral-400 mb-1 block">Çizgi Rengi</label><div className="flex gap-2">{['#000000', '#404040', '#991b1b', '#1e3a8a', '#eab308'].map(color => (<button key={color} className={`w-7 h-7 rounded-full border-2 transition-transform ${selectedEl.color === color ? 'border-blue-500 scale-110' : 'border-neutral-300 dark:border-neutral-600'}`} style={{ backgroundColor: color }} onClick={() => updateElementAndCommit(selectedId, { color })}/>))}</div></div>
+                            </div>
+                            )}
+                        </div>
+                        )}
+                        
+                        <div className="space-y-2"><h2 className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase">Şablon Yükle</h2><div className="grid grid-cols-2 gap-2"><button onClick={() => loadTemplate('page1')} className="p-2 text-xs font-medium text-amber-800 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/50 rounded flex items-center justify-center transition-colors"><i className="fa-solid fa-table-columns text-xs mr-1"></i> 1. Sayfa</button><button onClick={() => loadTemplate('page2')} className="p-2 text-xs font-medium text-blue-800 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-900/50 rounded flex items-center justify-center transition-colors"><i className="fa-solid fa-table-columns text-xs mr-1"></i> İç Sayfa</button></div></div>
+                        <hr className="border-neutral-100 dark:border-neutral-800" />
+                        <div className="space-y-2"><h2 className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase">İçerik Ekle</h2><button onClick={() => addTextElement('headline', 'BÜYÜK MANŞET')} className="w-full flex items-center p-2.5 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-heading text-base w-6 text-center mr-2 text-blue-600 dark:text-blue-400"></i> Ana Manşet</button><button onClick={() => addTextElement('subheadline', 'Alt Başlık Buraya')} className="w-full flex items-center p-2.5 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-h text-base w-6 text-center mr-2 text-blue-500 dark:text-blue-400"></i> Alt Başlık</button><button onClick={() => addTextElement('paragraph', 'Haberin detaylarını buraya yazabilirsiniz...')} className="w-full flex items-center p-2.5 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-file-lines text-base w-6 text-center mr-2 text-blue-400 dark:text-blue-300"></i> Haber Metni</button><button onClick={addColumnElement} className="w-full flex items-center p-2.5 text-sm bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-900/50 text-emerald-800 dark:text-emerald-400 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors"><i className="fa-solid fa-pen-nib text-base w-6 text-center mr-2 text-emerald-600 dark:text-emerald-400"></i> Köşe Yazısı</button><input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleImageUpload} /><button onClick={() => fileInputRef.current.click()} className="w-full flex items-center p-2.5 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-image text-base w-6 text-center mr-2 text-green-600 dark:text-green-400"></i> Resim Yükle</button><button onClick={addLineElement} className="w-full flex items-center p-2.5 text-sm bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"><i className="fa-solid fa-minus text-base w-6 text-center mr-2 text-purple-600 dark:text-purple-400"></i> Ayırma Çizgisi</button></div>
+                        <div className="space-y-2 pb-6"><h2 className="text-xs font-bold text-neutral-400 dark:text-neutral-500 uppercase">Eklemeler</h2><button onClick={addDateElement} className="w-full flex items-center justify-center p-3 bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded hover:bg-neutral-50 dark:hover:bg-neutral-700 text-sm text-neutral-700 dark:text-neutral-300 font-medium transition-colors"><i className="fa-regular fa-calendar-days text-xl mr-2 text-orange-500 dark:text-orange-400"></i> Gazete Tarihi Ekle</button></div>
+                    </div>
+
+                    <div className="p-4 bg-neutral-50 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-800 transition-colors"><button onClick={handleExportGIF} disabled={isExporting} className="w-full flex items-center justify-center p-4 text-sm font-bold text-white bg-neutral-900 dark:bg-white dark:text-neutral-900 rounded-lg hover:bg-black dark:hover:bg-neutral-200 transition-all shadow-md disabled:opacity-50">{isExporting ? 'GIF Oluşturuluyor...' : <React.Fragment><i className="fa-solid fa-film text-xl mr-2"></i> GIF Olarak İndir</React.Fragment>}</button></div>
+                    </div>
+
+                    {/* SAĞ PANEL */}
+                    <div className="flex-1 overflow-auto p-10 flex flex-col items-center relative" onMouseDown={(e) => { if (e.target.id === 'workspace-bg' || e.target.classList.contains('page-divider')) setSelectedId(null); }}>
+                    <div className="fixed bottom-8 right-8 z-40"><input type="file" accept="image/*" className="hidden" ref={bgInputRef} onChange={async (e) => { const f = e.target.files[0]; if(f) setBgImage(await processImage(f)); e.target.value = ''; }} /><div className="relative"><button onClick={() => bgInputRef.current.click()} className="flex items-center gap-2 bg-white/90 dark:bg-neutral-800/90 backdrop-blur-md px-5 py-3 rounded-full shadow-2xl hover:scale-105 hover:bg-white dark:hover:bg-neutral-700 text-sm font-bold text-neutral-800 dark:text-neutral-200 border border-neutral-200 dark:border-neutral-700 transition-all"><i className="fa-solid fa-images text-xl text-indigo-600 dark:text-indigo-400"></i> Arkaplan Ekle</button>{bgImage && <button onClick={() => setBgImage(null)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-2 shadow-lg hover:bg-red-600 hover:scale-110"><i className="fa-solid fa-xmark"></i></button>}</div></div>
+
+                    <div id="workspace-bg" ref={paperRef} className="relative shadow-2xl transition-all duration-300 mx-auto bg-transparent" style={{ width: '794px', height: `${pageCount * 1123}px` }}>
+                        {Array.from({ length: pageCount }).map((_, i) => (
+                        <div key={`page-bg-${i}`} className="absolute w-full pointer-events-none z-0" style={{ top: `${i * 1123}px`, height: '1123px', backgroundColor: bgImage ? 'transparent' : '#EBE5D9', backgroundImage: bgImage ? `url(${bgImage})` : 'none', backgroundSize: 'cover', backgroundPosition: 'center', borderBottom: i < pageCount - 1 ? '2px dashed #999' : 'none' }}>
+                            {i > 0 && <span className="absolute right-2 top-2 text-xs font-bold text-neutral-400 dark:text-neutral-500">Sayfa {i + 1}</span>}
+                        </div>
+                        ))}
+                        {elements.map(el => (
+                        <DraggableElement key={el.id} element={el} isSelected={selectedId === el.id} snapToGrid={snapToGrid} onSelect={() => setSelectedId(el.id)} onChange={(newProps) => updateElementStateOnly(el.id, newProps)} onDragEnd={() => commitHistory(elements)} onDelete={() => deleteElement(el.id)} />
+                        ))}
+                    </div>
+                    <button onClick={() => setPageCount(p => p + 1)} className="mt-6 flex items-center px-6 py-3 bg-neutral-700 dark:bg-neutral-800 hover:bg-neutral-600 dark:hover:bg-neutral-700 text-white font-bold rounded-lg shadow-lg border border-neutral-600 dark:border-neutral-700 transition-all mb-20"><i className="fa-solid fa-file-circle-plus text-xl mr-2"></i> Yeni Sayfa Ekle (Aşağı Uzat)</button>
+                    </div>
+                </div>
+                </div>
+            );
+        }
+
+        // Draggable Alt Bileşeni
+        function DraggableElement({ element, isSelected, snapToGrid, onSelect, onChange, onDragEnd, onDelete }) {
+            const [isDragging, setIsDragging] = useState(false);
+            const [isResizing, setIsResizing] = useState(false);
+            const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+            const [resizeStart, setResizeStart] = useState({ w: 0, h: 0, x: 0, y: 0 });
+
+            const handleMouseDown = (e) => {
+                if (element.isLocked) { onSelect(); return; }
+                if (e.target.closest('.resize-handle') || e.target.closest('.content-area')) return;
+                e.stopPropagation(); onSelect(); setIsDragging(true);
+                setDragStart({ x: e.clientX - element.x, y: e.clientY - element.y });
+            };
+
+            const handleResizeStart = (e) => {
+                e.stopPropagation(); onSelect(); setIsResizing(true);
+                setResizeStart({ w: element.width, h: element.height, x: e.clientX, y: e.clientY });
+            };
+
+            useEffect(() => {
+                const handleMouseMove = (e) => {
+                    if (isDragging) {
+                        let newX = e.clientX - dragStart.x; let newY = e.clientY - dragStart.y;
+                        if (snapToGrid) { newX = Math.round(newX / 20) * 20; newY = Math.round(newY / 20) * 20; }
+                        onChange({ x: newX, y: newY });
+                    } else if (isResizing) {
+                        let newWidth = Math.max(30, resizeStart.w + (e.clientX - resizeStart.x));
+                        let newHeight = Math.max(30, resizeStart.h + (e.clientY - resizeStart.y));
+                        if (snapToGrid) { newWidth = Math.round(newWidth / 20) * 20; newHeight = Math.round(newHeight / 20) * 20; }
+                        onChange({ width: newWidth, height: newHeight });
+                    }
+                };
+
+                const handleMouseUp = () => { if (isDragging || isResizing) { setIsDragging(false); setIsResizing(false); onDragEnd(); } };
+
+                if (isDragging || isResizing) {
+                    window.addEventListener('mousemove', handleMouseMove); window.addEventListener('mouseup', handleMouseUp);
+                }
+                return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
+            }, [isDragging, isResizing, dragStart, resizeStart, snapToGrid, onChange, onDragEnd]);
+
+            const getDynamicStyles = () => {
+                let baseSize = "text-base"; let textShadow = 'none'; let textTransform = 'none';
+                if (element.textType === 'headline') { baseSize = "text-6xl"; textShadow = '1px 1px 0px rgba(0,0,0,0.1)'; textTransform = 'uppercase'; }
+                else if (element.textType === 'subheadline') { baseSize = "text-3xl"; }
+                else if (element.textType === 'date' || element.textType === 'page-number') { baseSize = "text-sm"; textTransform = 'uppercase'; }
+
+                return {
+                    fontFamily: element.fontFamily || "'Times New Roman', Times, serif", color: element.color || '#171717',
+                    fontWeight: element.bold ? 'bold' : 'normal', fontStyle: element.italic ? 'italic' : 'normal',
+                    textDecoration: element.underline ? 'underline' : 'none', textAlign: element.align || 'left',
+                    backgroundColor: element.bgColor || 'transparent', textShadow, textTransform,
+                    letterSpacing: element.textType === 'date' ? '2px' : 'normal'
+                };
+            };
+
+            return (
+                <div className={`absolute group`} style={{ left: `${element.x}px`, top: `${element.y}px`, width: `${element.width}px`, height: `${element.height}px`, zIndex: isSelected ? 999 : (element.zIndex || 10), cursor: element.isLocked ? 'default' : (isDragging ? 'grabbing' : 'grab') }} onMouseDown={handleMouseDown} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+                {isSelected && (
+                    <React.Fragment>
+                    <div className={`absolute -inset-1 border-2 border-dashed pointer-events-none ${element.isLocked ? 'border-red-500' : 'border-blue-500'}`}></div>
+                    <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="absolute -top-10 right-0 bg-red-500 text-white p-1.5 rounded-md shadow-lg hover:bg-red-600 z-50"><i className="fa-solid fa-trash-can text-base"></i></button>
+                    {!element.isLocked && <div className="absolute -top-10 left-0 bg-blue-500 text-white p-1.5 rounded-md shadow-lg cursor-move z-50"><i className="fa-solid fa-grip-lines text-base"></i></div>}
+                    {element.isLocked && <div className="absolute -top-10 left-0 bg-red-500 text-white p-1.5 rounded-md shadow-lg z-50"><i className="fa-solid fa-lock text-base"></i></div>}
+                    </React.Fragment>
+                )}
+
+                <div className="w-full h-full relative flex flex-col">
+                    {element.type === 'text' ? (
+                    <textarea className={`content-area w-full h-full resize-none outline-none overflow-hidden bg-transparent leading-tight`} value={element.content} readOnly={element.isLocked} onChange={(e) => onChange({ content: e.target.value })} onBlur={onDragEnd} placeholder="Metin..." style={getDynamicStyles()} />
+                    ) : element.type === 'author-column' ? (
+                    <div className="w-full h-full flex flex-col bg-white/40 p-4 border border-neutral-300 shadow-sm" style={{ backgroundColor: element.bgColor }}>
+                        <div className="flex items-center mb-3 border-b border-neutral-300 pb-3">
+                        <img src={element.url} alt="Yazar" className="w-14 h-14 rounded-full object-cover mr-3 grayscale-[0.3] border border-neutral-400" draggable={false} />
+                        <input type="text" className="content-area font-bold text-lg bg-transparent border-none outline-none flex-1" value={element.authorName} readOnly={element.isLocked} onChange={(e) => onChange({ authorName: e.target.value })} onBlur={onDragEnd} style={{ fontFamily: element.fontFamily, color: element.color }} />
+                        </div>
+                        <textarea className="content-area flex-1 w-full bg-transparent resize-none outline-none overflow-hidden text-sm leading-relaxed" value={element.content} readOnly={element.isLocked} onChange={(e) => onChange({ content: e.target.value })} onBlur={onDragEnd} style={{ fontFamily: element.fontFamily, color: element.color, textAlign: element.align, fontWeight: element.bold?'bold':'normal', fontStyle: element.italic?'italic':'normal' }} />
+                    </div>
+                    ) : element.type === 'weather' ? (
+                    <div className="w-full h-full flex items-center justify-center border-2 border-neutral-800 bg-white" style={{ color: element.color }}>
+                        <i className="fa-solid fa-cloud-sun text-3xl mr-2"></i>
+                        <input type="text" value={element.content} readOnly={element.isLocked} onChange={(e) => onChange({ content: e.target.value })} onBlur={onDragEnd} className="content-area bg-transparent border-none outline-none font-bold text-xl w-full text-center" style={{ fontFamily: element.fontFamily, color: element.color, textAlign: element.align }} />
+                    </div>
+                    ) : element.type === 'image' ? (
+                    <React.Fragment>
+                        <img src={element.url} alt="Medya" className={`w-full flex-1 object-cover grayscale-[0.3] contrast-[1.1] border border-neutral-300`} draggable={false} />
+                        <input type="text" placeholder="Fotoğraf: İsim / Mahlas..." className="w-full text-xs font-serif italic text-right bg-transparent border-none outline-none text-neutral-600 mt-1" value={element.credit || ''} readOnly={element.isLocked} onChange={(e) => onChange({ credit: e.target.value })} onBlur={onDragEnd} />
+                    </React.Fragment>
+                    ) : element.type === 'line' ? (
+                    <div className="w-full h-full" style={{ backgroundColor: element.color || '#000000' }} />
+                    ) : null}
+                </div>
+
+                {isSelected && !element.isLocked && element.type !== 'line' && (
+                    <div className="resize-handle absolute -right-2 -bottom-2 w-5 h-5 bg-white border-2 border-blue-500 rounded-full cursor-nwse-resize flex items-center justify-center shadow-md z-50" onMouseDown={handleResizeStart}>
+                    <i className="fa-solid fa-expand text-xs text-blue-500 pointer-events-none"></i>
+                    </div>
+                )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
